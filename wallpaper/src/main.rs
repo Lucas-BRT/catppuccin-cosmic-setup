@@ -89,11 +89,11 @@ fn parse_args() -> Result<Option<Args>, String> {
                 return Ok(None);
             }
             "--list-styles" => {
-                styles::STYLES.iter().for_each(|(n, _)| println!("{n}"));
+                styles::list().iter().for_each(|(n, _)| println!("{n}"));
                 return Ok(None);
             }
             "--describe-styles" => {
-                styles::STYLES
+                styles::list()
                     .iter()
                     .for_each(|(n, d)| println!("{n:<11} {d}"));
                 return Ok(None);
@@ -128,8 +128,8 @@ fn parse_args() -> Result<Option<Args>, String> {
             palette::accents().join(", ")
         ));
     }
-    if !styles::STYLES.iter().any(|(n, _)| *n == a.style) {
-        let names: Vec<_> = styles::STYLES.iter().map(|(n, _)| *n).collect();
+    if !styles::list().iter().any(|(n, _)| *n == a.style) {
+        let names: Vec<_> = styles::list().iter().map(|(n, _)| *n).collect();
         return Err(format!(
             "unknown style '{}' (choose: {})",
             a.style,
@@ -159,7 +159,7 @@ fn save(path: &Path, style: &str, a: &Args) -> Result<(), String> {
 /// Grid of every style (rows) in every flavor (columns) on a Crust border.
 fn preview(path: &Path, accent: &str, (tw, th): (usize, usize)) -> Result<(), String> {
     const GAP: usize = 8;
-    let names: Vec<_> = styles::STYLES.iter().map(|(n, _)| *n).collect();
+    let names: Vec<_> = styles::list().iter().map(|(n, _)| *n).collect();
     let flavors = palette::flavors();
     let (w, h) = (
         flavors.len() * (tw + GAP) + GAP,
@@ -195,7 +195,7 @@ fn run(a: &Args) -> Result<(), String> {
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     // Rows are rendered in parallel inside each image, and the images run in
     // parallel too so their (single-threaded) PNG compression overlaps.
-    styles::STYLES.par_iter().try_for_each(|(style, _)| {
+    styles::list().par_iter().try_for_each(|(style, _)| {
         save(
             &dir.join(format!("catppuccin-{}-{}-{style}.png", a.flavor, a.accent)),
             style,
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn every_style_renders_every_flavor_deterministically() {
-        for (style, _) in styles::STYLES {
+        for (style, _) in styles::list() {
             for flavor in palette::flavors() {
                 let a = render_one(style, flavor, "mauve", (64, 36));
                 assert_eq!(a.len(), 64 * 36 * 3);

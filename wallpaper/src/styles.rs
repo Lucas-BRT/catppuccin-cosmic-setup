@@ -14,46 +14,18 @@ use crate::palette::{Palette, Rgb};
 
 pub type PixelFn = Box<dyn Fn(usize, usize) -> Rgb + Sync + Send>;
 
-/// Style names in display order, with a one-line description.
-pub const STYLES: [(&str, &str); 10] = [
-    (
-        "glow",
-        "Crust→Base gradient with soft glows in the accent, Blue and Pink",
-    ),
-    (
-        "waves",
-        "layered hills rising from the bottom, fading into the accent",
-    ),
-    (
-        "stripes",
-        "a diagonal ribbon of the accent and its neighbor colors",
-    ),
-    (
-        "dots",
-        "halftone dots in the accent, growing toward one corner",
-    ),
-    (
-        "triangles",
-        "low-poly triangles in surface tones, tinted by the accent",
-    ),
-    (
-        "mesh",
-        "a soft mesh gradient of the accent and two companion colors",
-    ),
-    (
-        "aurora",
-        "curtains of light in the accent and Teal over a night sky",
-    ),
-    (
-        "sunset",
-        "a retro sun cut by stripes over a perspective grid",
-    ),
-    (
-        "topography",
-        "contour lines like a topographic map, in the accent",
-    ),
-    ("mountains", "layered mountain ridges under a moon"),
-];
+/// Style names and descriptions in display order, from wallpaper/styles.txt
+/// (shared with the installer, which validates style names before running).
+pub fn list() -> Vec<(&'static str, &'static str)> {
+    include_str!("../styles.txt")
+        .lines()
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(|l| {
+            l.split_once('\t')
+                .expect("styles.txt: name<TAB>description")
+        })
+        .collect()
+}
 
 pub fn build(style: &str, p: Palette, accent: &str, w: usize, h: usize) -> Option<PixelFn> {
     let (wf, hf) = (w as f64, h as f64);

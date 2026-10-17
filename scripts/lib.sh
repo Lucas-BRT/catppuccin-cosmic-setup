@@ -24,12 +24,11 @@ ctp check "$FLAVOR" "$ACCENT"
 
 # Wallpaper style, or "all" to render every style into a folder for COSMIC's
 # wallpaper picker. The default "glow" keeps the plain
-# catppuccin-<flavor>-<accent>.png name. The style names are read from the
-# generator's source (wallpaper/src/styles.rs) so they can be validated
-# before anything is downloaded or built; CI checks this matches
-# `ctp-wallpaper --list-styles`.
+# catppuccin-<flavor>-<accent>.png name. The style names come from
+# wallpaper/styles.txt, the same list compiled into ctp-wallpaper, so they
+# can be validated before anything is downloaded or built.
 WALLPAPER_STYLE="${WALLPAPER_STYLE:-glow}"
-WALLPAPER_STYLES=$(sed -n 's/^    ("\([a-z]*\)", ".*/\1/p' "$REPO_DIR/wallpaper/src/styles.rs")
+WALLPAPER_STYLES=$(grep -v '^#' "$REPO_DIR/wallpaper/styles.txt" | cut -f1)
 if [ "$WALLPAPER_STYLE" != all ] && ! grep -qx "$WALLPAPER_STYLE" <<<"$WALLPAPER_STYLES"; then
     echo "unknown wallpaper style '$WALLPAPER_STYLE' (choose: $(paste -sd, <<<"$WALLPAPER_STYLES" | sed 's/,/, /g'), all)" >&2
     exit 1

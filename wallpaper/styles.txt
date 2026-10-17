@@ -1,0 +1,12 @@
+# Wallpaper styles: name<TAB>description, in display order.
+# Read by ctp-wallpaper (include_str!) and by scripts/lib.sh (validation).
+glow	Crust→Base gradient with soft glows in the accent, Blue and Pink
+waves	layered hills rising from the bottom, fading into the accent
+stripes	a diagonal ribbon of the accent and its neighbor colors
+dots	halftone dots in the accent, growing toward one corner
+triangles	low-poly triangles in surface tones, tinted by the accent
+mesh	a soft mesh gradient of the accent and two companion colors
+aurora	curtains of light in the accent and Teal over a night sky
+sunset	a retro sun cut by stripes over a perspective grid
+topography	contour lines like a topographic map, in the accent
+mountains	layered mountain ridges under a moon

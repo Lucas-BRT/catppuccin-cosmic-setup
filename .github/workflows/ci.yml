@@ -30,8 +30,8 @@ jobs:
         run: cargo build --release --locked
       - name: Palette matches lib/catppuccin.py
         run: diff <(target/release/ctp-wallpaper --dump-palette | sort) <(python3 ../lib/catppuccin.py dump | sort)
-      - name: Style list matches scripts/lib.sh parsing
-        run: diff <(sed -n 's/^    ("\([a-z]*\)", ".*/\1/p' src/styles.rs) <(target/release/ctp-wallpaper --list-styles)
+      - name: Style list matches what scripts/lib.sh reads
+        run: diff <(grep -v '^#' styles.txt | cut -f1) <(target/release/ctp-wallpaper --list-styles)
 
   scripts:
     name: Installer scripts and themes
