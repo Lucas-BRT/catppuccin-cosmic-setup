@@ -1,7 +1,13 @@
-# Catppuccin Mocha for COSMIC
+# catppuccin-cosmic-setup
 
 Scripts and configs that theme Pop!_OS 24.04 (COSMIC desktop) with
-[Catppuccin](https://catppuccin.com) **Mocha** and the **Mauve** accent.
+[Catppuccin](https://catppuccin.com): any of the 4 flavors (Latte, Frappé,
+Macchiato, Mocha) and 14 accents. The default is **Mocha** with the
+**Mauve** accent.
+
+> This is a community installer, not an official Catppuccin port. The
+> official COSMIC port lives at
+> [catppuccin/cosmic-desktop](https://github.com/catppuccin/cosmic-desktop).
 
 The desktop theme is generated here in the **COSMIC 1.10** format, with
 **Frosted Glass** support (see [The COSMIC 1.10 format](#the-cosmic-110-format)).
@@ -12,9 +18,10 @@ result.
 ## Quick start
 
 ```bash
-git clone <this-repo> ~/Projects/catppuccin-mocha-cosmic
-cd ~/Projects/catppuccin-mocha-cosmic
-./install.sh
+git clone <this-repo> ~/Projects/catppuccin-cosmic-setup
+cd ~/Projects/catppuccin-cosmic-setup
+./install.sh                              # Mocha Mauve
+FLAVOR=latte ACCENT=blue ./install.sh     # any other combination
 ```
 
 The installer backs everything up before changing anything, and it can be
@@ -26,6 +33,7 @@ To run only some steps or change options:
 ```bash
 ./install.sh --list            # list the steps
 ./install.sh icons wallpaper   # run only these
+FLAVOR=frappe ./install.sh     # another flavor (latte, frappe, macchiato, mocha)
 ACCENT=lavender ./install.sh   # another accent (blue, pink, peach, teal...)
 FROSTED=high ./install.sh cosmic             # stronger Frosted Glass
 FROSTED=off ./install.sh cosmic              # no transparency
@@ -35,15 +43,27 @@ FROST_ON=panel,applets ./install.sh cosmic   # only on the panel and applets
 | Variable       | Default | Effect                                         |
 | -------------- | ------- | ---------------------------------------------- |
 | `FLAVOR`       | `mocha` | Catppuccin flavor (`latte`, `frappe`, `macchiato`, `mocha`) |
-| `ACCENT`       | `mauve` | Accent color for the desktop and the folders   |
+| `ACCENT`       | `mauve` | Accent color: `rosewater`, `flamingo`, `pink`, `mauve`, `red`, `maroon`, `peach`, `yellow`, `green`, `teal`, `sky`, `sapphire`, `blue`, `lavender` |
 | `FROSTED`      | `auto`  | `auto` keeps the current Frosted Glass setting, `off` disables it, or a strength: `extremely_low`, `extremely_low_2`, `very_low`, `very_low_2`, `low`, `low_2`, `medium`, `medium_2`, `high`, `high_2`, `very_high`, `very_high_2`, `extremely_high`, `extremely_high_2` |
 | `FROST_ON`     | all but `maximized_apps` | Where Frosted Glass applies: `windows`, `system_interface`, `panel`, `applets`, `maximized_apps` |
 | `ALPHA_OFFSET` | `0`     | Added to the Frosted Glass opacity (`0.1` = more opaque, `-0.1` = more transparent) |
 | `NO_APPLY`     | `0`     | `1` only generates the theme, without applying it |
 | `NO_BACKUP`    | `0`     | `1` skips the backup                           |
 
-The bash prompt and the wallpaper use fixed Mocha colors and do not change
-with `FLAVOR` or `ACCENT`.
+Every step follows `FLAVOR` and `ACCENT`: desktop theme, terminal scheme,
+prompt colors, folder color, wallpaper and the Zed theme name. Latte is the
+only light flavor, so it switches COSMIC to light mode and uses the light
+`Papirus` icons instead of `Papirus-Dark`. An unknown flavor or accent
+stops the installer before anything is changed.
+
+All colors come from one place, [`lib/catppuccin.py`](lib/catppuccin.py),
+which the generators import and the shell scripts call:
+
+```bash
+lib/catppuccin.py rgb frappe peach          # 239;159;118
+lib/catppuccin.py name frappe               # Frappé
+lib/catppuccin.py render latte blue < template > output   # fills @<color>@ placeholders
+```
 
 ## What each step does
 
@@ -52,10 +72,10 @@ with `FLAVOR` or `ACCENT`.
 | *(backup)*  | `scripts/00-backup.sh`        | Copies `~/.config/cosmic`, `~/.bashrc` and Zed's `settings.json`, and exports the current theme as `previous-theme.ron` |
 | `cosmic`    | `scripts/10-cosmic-theme.sh`  | Generates the theme and applies it with `cosmic-settings appearance import` |
 | `terminal`  | `scripts/20-terminal.sh`      | Downloads the terminal scheme and checks whether it was imported |
-| `bash`      | `scripts/30-bash-prompt.sh`   | Installs `~/.config/catppuccin/catppuccin-prompt.bash` and a block in `~/.bashrc` |
+| `bash`      | `scripts/30-bash-prompt.sh`   | Renders the prompt in the flavor's colors to `~/.config/catppuccin/catppuccin-prompt.bash` and adds a block to `~/.bashrc` |
 | `zed`       | `scripts/40-zed.sh`           | Only checks the extensions and `settings.json`, changes nothing |
-| `icons`     | `scripts/50-icons.sh`         | Papirus-Dark in `~/.local/share/icons`, `cat-mocha-mauve` folders |
-| `wallpaper` | `scripts/60-wallpaper.sh`     | Sets `~/Pictures/Wallpapers/catppuccin-mocha.png` as the background |
+| `icons`     | `scripts/50-icons.sh`         | Papirus in `~/.local/share/icons`, `cat-<flavor>-<accent>` folders |
+| `wallpaper` | `scripts/60-wallpaper.sh`     | Sets `~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>.png` as the background |
 
 ### COSMIC desktop
 
@@ -89,34 +109,36 @@ with `FLAVOR` or `ACCENT`.
 ### COSMIC Terminal
 
 - **Source:** [catppuccin/cosmic-desktop](https://github.com/catppuccin/cosmic-desktop),
-  `themes/cosmic-term/catppuccin-mocha.ron`. The format did not change in 1.10.
-- Text `#cdd6f4`, Rosewater cursor `#f5e0dc` and the 16 Mocha ANSI colors.
+  `themes/cosmic-term/catppuccin-<flavor>.ron`. The format did not change in 1.10.
+- Text, cursor and the 16 ANSI colors of the chosen flavor.
 - It sets no background of its own: the terminal uses the desktop theme's
   background, so it turns translucent with Frosted Glass too.
 - **Import (manual, the terminal has no command for it):** COSMIC Terminal →
   View → Color schemes… → **Import** →
-  `~/.local/share/catppuccin/themes/cosmic-term/catppuccin-mocha.ron`
+  `~/.local/share/catppuccin/themes/cosmic-term/catppuccin-<flavor>.ron`
 
 ### Bash prompt
 
-- **File:** [`config/bash/catppuccin-prompt.bash`](config/bash/catppuccin-prompt.bash),
-  with every color commented.
+- **Template:** [`config/bash/catppuccin-prompt.bash.in`](config/bash/catppuccin-prompt.bash.in),
+  with every color commented. The installer fills in the flavor's colors
+  and writes `~/.config/catppuccin/catppuccin-prompt.bash`.
 - **Layout:** `user@host ~/path branch ❯`, in blue, overlay0, teal,
-  yellow, mauve and green.
+  yellow, the accent and green.
 - Also sets `LS_COLORS` for directories, symlinks, executables and archives.
 - Only this block is added to `~/.bashrc`:
 
   ```bash
-  # >>> catppuccin-mocha >>>
+  # >>> catppuccin-cosmic-setup >>>
   [ -f ~/.config/catppuccin/catppuccin-prompt.bash ] && . ~/.config/catppuccin/catppuccin-prompt.bash
-  # <<< catppuccin-mocha <<<
+  # <<< catppuccin-cosmic-setup <<<
   ```
 
 ### Zed
 
 - **Extensions:** `catppuccin` (theme) and `catppuccin-icons` (icons),
   installed from Zed itself (`Ctrl+Shift+X`).
-- **Snippet for `~/.config/zed/settings.json`:**
+- **Snippet for `~/.config/zed/settings.json`** (Mocha shown; Latte goes
+  under `"light"`, and Frappé is spelled `"Catppuccin Frappé"`):
 
   ```jsonc
   "icon_theme": "Catppuccin Mocha",
@@ -129,26 +151,29 @@ with `FLAVOR` or `ACCENT`.
 ### Icons
 
 - **Base:** [Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme),
-  copied to `~/.local/share/icons` (no `sudo`).
+  copied to `~/.local/share/icons` (no `sudo`). Dark flavors use
+  `Papirus-Dark`, Latte uses the light `Papirus`.
 - **Folders:** [catppuccin/papirus-folders](https://github.com/catppuccin/papirus-folders),
   recolored with the
   [papirus-folders](https://github.com/PapirusDevelopmentTeam/papirus-folders)
-  script (`-t Papirus-Dark -C cat-mocha-mauve`).
-- **Config:** `~/.config/cosmic/com.system76.CosmicTk/v1/icon_theme = "Papirus-Dark"`.
+  script (`-C cat-<flavor>-<accent>`).
+- **Config:** `~/.config/cosmic/com.system76.CosmicTk/v1/icon_theme`.
 
 ### Wallpaper
 
 - **Generator:** [`wallpaper/generate.py`](wallpaper/generate.py), Python
-  standard library only. Draws a Crust→Base gradient with Mauve, Blue and
-  Pink glows, and always produces the same image.
-- **Pre-rendered image:** `wallpaper/catppuccin-mocha.png` (2560×1440).
+  standard library only. Draws a Crust→Base gradient with glows in the
+  accent, Blue and Pink, and always produces the same image for the same
+  options.
+- **Pre-rendered image:** `wallpaper/catppuccin-mocha-mauve.png` (2560×1440).
+  Any other combination is rendered during install (about 10 seconds).
 - **Config:** [`config/cosmic/background-all.ron`](config/cosmic/background-all.ron)
   goes to `~/.config/cosmic/com.system76.CosmicBackground/v1/all`.
 
-To render at another resolution:
+To render another combination or resolution:
 
 ```bash
-python3 wallpaper/generate.py ~/Pictures/Wallpapers/catppuccin-mocha.png 3840 2160
+python3 wallpaper/generate.py out.png --flavor macchiato --accent teal --size 3840x2160
 ```
 
 ## The COSMIC 1.10 format
@@ -194,19 +219,20 @@ cosmic-settings appearance import ~/.config/catppuccin-backup-.../previous-theme
 
 The pinned commits live in [`scripts/lib.sh`](scripts/lib.sh)
 (`CTP_COSMIC_REV`, `PAPIRUS_REV`...). To update, change the hash and run
-the step again. Downloads are cached in `~/.cache/catppuccin-mocha-cosmic/`.
+the step again. Downloads are cached in `~/.cache/catppuccin-cosmic-setup/`.
 
 ## Layout
 
 ```
 install.sh / uninstall.sh      entry points
+lib/catppuccin.py              the palette, single source of colors
 scripts/lib.sh                 paths, pinned versions and shared functions
 scripts/NN-*.sh                one step per file, each runs on its own
-config/bash/                   bash prompt
+config/bash/                   bash prompt template
 config/cosmic/                 values written to cosmic-config
 themes/generate.py             COSMIC 1.10 theme generator (with Frosted Glass)
-themes/cosmic-settings/        ready-made Mocha themes, solid and frosted
-wallpaper/                     wallpaper generator and image
+themes/cosmic-settings/        ready-made Mocha themes, solid and frosted (others generated on install)
+wallpaper/                     wallpaper generator and the default image
 ```
 
 ## Credits

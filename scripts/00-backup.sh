@@ -3,7 +3,7 @@
 # 00 · Backup
 # Copies everything the other steps change into
 # ~/.config/catppuccin-backup-YYYY-MM-DD-HHMMSS/ and records that path in
-# ~/.cache/catppuccin-mocha-cosmic/last-backup (used by uninstall.sh).
+# ~/.cache/catppuccin-cosmic-setup/last-backup (used by uninstall.sh).
 # The current theme is also exported as previous-theme.ron.
 # =============================================================================
 source "$(dirname "$0")/lib.sh"

@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # =============================================================================
 # 30 · Bash prompt
-# Installs config/bash/catppuccin-prompt.bash into ~/.config/catppuccin/ and
+# Renders config/bash/catppuccin-prompt.bash.in with the colors of $FLAVOR
+# and $ACCENT, installs it as ~/.config/catppuccin/catppuccin-prompt.bash and
 # adds a marked block to ~/.bashrc that sources it. The markers let the
 # block be replaced or removed without touching the rest of the file.
 # =============================================================================
 source "$(dirname "$0")/lib.sh"
 
-info "Bash prompt"
+info "Bash prompt ($FLAVOR, $ACCENT accent)"
 mkdir -p "$HOME/.config/catppuccin"
-cp "$REPO_DIR/config/bash/catppuccin-prompt.bash" "$HOME/.config/catppuccin/"
+ctp render "$FLAVOR" "$ACCENT" < "$REPO_DIR/config/bash/catppuccin-prompt.bash.in" \
+    > "$HOME/.config/catppuccin/catppuccin-prompt.bash"
 
-start='# >>> catppuccin-mocha >>>'
-end='# <<< catppuccin-mocha <<<'
+start='# >>> catppuccin-cosmic-setup >>>'
+end='# <<< catppuccin-cosmic-setup <<<'
 touch "$HOME/.bashrc"
 # Drop any block from a previous run before writing the new one.
 sed -i "/^$start\$/,/^$end\$/d" "$HOME/.bashrc"

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Installs Catppuccin Mocha on Pop!_OS 24.04 with the COSMIC desktop.
+# Installs Catppuccin (any flavor and accent; Mocha Mauve by default) on
+# Pop!_OS 24.04 with the COSMIC desktop.
 #
 # Usage:
 #   ./install.sh                 # every step (backs up first)
@@ -8,7 +9,7 @@
 #   ./install.sh --list          # list the steps
 #
 # Optional variables:
-#   FLAVOR=mocha   ACCENT=mauve  # another accent: ACCENT=lavender ./install.sh
+#   FLAVOR=mocha   ACCENT=mauve  # e.g. FLAVOR=latte ACCENT=lavender ./install.sh
 #   FROSTED=auto|off|medium|...  # Frosted Glass (default: keep the current setting)
 #   FROST_ON=windows,panel,...   # where Frosted Glass applies
 #   ALPHA_OFFSET=0.1             # more opaque (negative = more transparent)

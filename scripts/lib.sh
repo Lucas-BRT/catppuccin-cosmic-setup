@@ -9,13 +9,20 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COSMIC_DIR="$HOME/.config/cosmic"
 DATA_DIR="$HOME/.local/share/catppuccin"   # generated and downloaded .ron themes
 ICONS_DIR="$HOME/.local/share/icons"       # Papirus goes here (no sudo)
-CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/catppuccin-mocha-cosmic"
-WALLPAPER="$HOME/Pictures/Wallpapers/catppuccin-mocha.png"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/catppuccin-cosmic-setup"
 
 # Catppuccin flavor and accent. Override with environment variables:
-#   ACCENT=lavender ./install.sh
+#   FLAVOR=latte ACCENT=lavender ./install.sh
 FLAVOR="${FLAVOR:-mocha}"
 ACCENT="${ACCENT:-mauve}"
+
+# Palette helper (lib/catppuccin.py): check, name, is-dark, rgb, render.
+ctp() { python3 -I "$REPO_DIR/lib/catppuccin.py" "$@"; }
+ctp check "$FLAVOR" "$ACCENT"
+
+WALLPAPER="$HOME/Pictures/Wallpapers/catppuccin-$FLAVOR-$ACCENT.png"
+# Papirus has a dark and a light variant; Latte is the only light flavor.
+if ctp is-dark "$FLAVOR"; then ICON_THEME=Papirus-Dark; else ICON_THEME=Papirus; fi
 
 # Upstream repositories pinned to exact commits so installs are
 # reproducible. To update, replace the hash with the commit you want.
