@@ -53,17 +53,11 @@ if [ -n "$native" ]; then
             cp "$native/$icon-symbolic.svg" "$ICONS_DIR/$theme/scalable/actions/"
         fi
     done
-    # COSMIC's icon lookup follows Inherits only one level deep (then tries
-    # Cosmic, hicolor and gnome), so list the whole chain explicitly: Papirus
-    # first, then COSMIC's own chain (Cosmic → Pop → Pop-Extra,
-    # pop-os-branding, Adwaita) for the icons Papirus lacks, then Papirus' own
-    # parent. Without this, icons that only Pop ships (e.g. Repoman) vanish.
-    if [ "$ICON_THEME" = Papirus-Dark ]; then papirus_parent=breeze-dark; else papirus_parent=breeze; fi
     cat > "$ICONS_DIR/$theme/index.theme" <<THEME
 [Icon Theme]
 Name=$theme
 Comment=$ICON_THEME with COSMIC's window controls (catppuccin-cosmic-setup)
-Inherits=$ICON_THEME,Cosmic,Pop,Pop-Extra,pop-os-branding,Adwaita,$papirus_parent,hicolor
+Inherits=$ICON_THEME,Cosmic,hicolor
 Directories=scalable/actions
 
 [scalable/actions]
