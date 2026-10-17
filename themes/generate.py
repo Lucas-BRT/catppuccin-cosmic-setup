@@ -1,39 +1,39 @@
 #!/usr/bin/env python3
-"""Gera temas Catppuccin no formato do COSMIC 1.10 (ThemeBuilder v2).
+"""Generate Catppuccin themes in the COSMIC 1.10 format (ThemeBuilder v2).
 
-Por que existe: os .ron oficiais de catppuccin/cosmic-desktop foram feitos
-para o formato antigo (ThemeBuilder v1). No COSMIC 1.10 eles ainda abrem,
-mas perdem coisas:
+Why this exists: the official .ron files from catppuccin/cosmic-desktop
+target the old format (ThemeBuilder v1). COSMIC 1.10 still imports them,
+but things get lost:
 
-  * `is_frosted` não existe mais e é ignorado em silêncio. A transparência
-    agora usa `frosted` (intensidade do desfoque), `frosted_windows`,
+  * `is_frosted` no longer exists and is silently ignored. Transparency
+    now uses `frosted` (blur strength), `frosted_windows`,
     `frosted_system_interface`, `frosted_panel`, `frosted_applets`,
-    `frosted_maximized_apps` e `alpha_map` (opacidade de cada intensidade).
-    Como esses campos faltam, importar o tema antigo DESLIGA o Frosted
-    Glass de quem estava com ele ligado.
-  * A paleta perdeu `blue`, `red`, `green`, `yellow` e `gray_3`
-    (também ignorados).
-  * O COSMIC grava cores como "#RRGGBBAA". O formato antigo
-    (red: 0.5, green: ...) ainda é aceito, mas este gerador já usa o novo,
-    igual ao que `cosmic-settings appearance export` produz.
+    `frosted_maximized_apps` and `alpha_map` (opacity for each strength).
+    Since those fields are missing, importing the old theme TURNS OFF
+    Frosted Glass for anyone who had it on.
+  * The palette dropped `blue`, `red`, `green`, `yellow` and `gray_3`
+    (also ignored).
+  * COSMIC stores colors as "#RRGGBBAA". The old format
+    (red: 0.5, green: ...) is still accepted, but this generator uses the
+    new one, matching what `cosmic-settings appearance export` writes.
 
-As cores e a escolha de qual cor do Catppuccin vai em cada campo seguem o
-template oficial (templates/cosmic-settings.tera do catppuccin/cosmic-desktop).
+Colors, and which Catppuccin color goes into each field, follow the
+official template (templates/cosmic-settings.tera in catppuccin/cosmic-desktop).
 
-Uso:
-    themes/generate.py -o tema.ron                     # Mocha Mauve, sólido
-    themes/generate.py --accent blue --frosted medium -o tema.ron
-    themes/generate.py --all themes/cosmic-settings    # todos os sabores e acentos
+Usage:
+    themes/generate.py -o theme.ron                    # Mocha Mauve, solid
+    themes/generate.py --accent blue --frosted medium -o theme.ron
+    themes/generate.py --all themes/cosmic-settings    # every flavor and accent
     themes/generate.py --help
 
-Para aplicar sem abrir as Configurações:
-    cosmic-settings appearance import tema.ron
+To apply without opening Settings:
+    cosmic-settings appearance import theme.ron
 """
 import argparse
 import os
 import sys
 
-# Paleta oficial: https://catppuccin.com/palette
+# Official palette: https://catppuccin.com/palette
 FLAVORS = {
     "latte": dict(
         rosewater="dc8a78", flamingo="dd7878", pink="ea76cb", mauve="8839ef",
@@ -77,15 +77,15 @@ ACCENTS = [
     "yellow", "green", "teal", "sky", "sapphire", "blue", "lavender",
 ]
 
-# Campos da paleta do COSMIC → cor do Catppuccin, na ordem em que o
-# COSMIC 1.10 grava (CosmicPaletteInner no libcosmic).
+# COSMIC palette field → Catppuccin color, in the order COSMIC 1.10
+# writes them (CosmicPaletteInner in libcosmic).
 PALETTE_MAP = [
     ("bright_red", "red"),
     ("bright_green", "green"),
     ("bright_orange", "peach"),
-    ("gray_1", "mantle"),          # superfícies
+    ("gray_1", "mantle"),          # surfaces
     ("gray_2", "base"),
-    ("neutral_0", "crust"),        # escala de neutros, do mais escuro ao mais claro
+    ("neutral_0", "crust"),        # neutral scale, darkest to lightest
     ("neutral_1", "mantle"),
     ("neutral_2", "base"),
     ("neutral_3", "surface0"),
@@ -96,7 +96,7 @@ PALETTE_MAP = [
     ("neutral_8", "overlay2"),
     ("neutral_9", "subtext0"),
     ("neutral_10", "subtext1"),
-    ("accent_blue", "blue"),       # os 9 acentos que aparecem como bolinhas em Aparência
+    ("accent_blue", "blue"),       # the 9 accent swatches shown under Appearance
     ("accent_indigo", "mauve"),
     ("accent_purple", "lavender"),
     ("accent_pink", "pink"),
@@ -105,7 +105,7 @@ PALETTE_MAP = [
     ("accent_yellow", "yellow"),
     ("accent_green", "green"),
     ("accent_warm_grey", "overlay2"),
-    ("ext_warm_grey", "overlay2"),  # cores extras usadas por alguns apps
+    ("ext_warm_grey", "overlay2"),  # extra colors used by some apps
     ("ext_orange", "peach"),
     ("ext_yellow", "yellow"),
     ("ext_blue", "blue"),
@@ -116,13 +116,13 @@ PALETTE_MAP = [
 
 ROUNDNESS = {
     # radius_0, xs, s, m, l, xl
-    "round": (0, 4, 8, 16, 32, 160),          # padrão do COSMIC
+    "round": (0, 4, 8, 16, 32, 160),          # COSMIC default
     "slightlyround": (0, 2, 8, 8, 8, 8),
     "square": (0, 2, 2, 2, 2, 2),
 }
 
-# Intensidades do desfoque (enum BlurStrength do libcosmic), da mais fraca
-# para a mais forte, e a opacidade padrão de cada uma (AlphaMap::default).
+# Blur strengths (libcosmic's BlurStrength enum), weakest to strongest,
+# with the default opacity for each one (AlphaMap::default).
 BLUR = [
     ("ExtremelyLow", "extremely_low", 0.90),
     ("ExtremelyLow2", "extremely_low_2", 0.87692),
@@ -141,23 +141,23 @@ BLUR = [
 ]
 BLUR_BY_KEY = {key: name for name, key, _ in BLUR}
 
-# Onde o Frosted Glass vale, na mesma ordem dos interruptores em Aparência.
+# Where Frosted Glass applies, in the same order as the toggles under Appearance.
 FROST_TARGETS = ["windows", "system_interface", "panel", "applets", "maximized_apps"]
 FROST_DEFAULT = ["windows", "system_interface", "panel", "applets"]
 
 
 def hexa(rgb, alpha=1.0):
-    """'cba6f7' → '#CBA6F7FF', o formato que o COSMIC grava."""
+    """'cba6f7' → '#CBA6F7FF', the format COSMIC writes."""
     return "#%s%02X" % (rgb.upper(), round(alpha * 255))
 
 
 def build(flavor, accent, roundness="round", window_hint=None, frosted=None,
           frost_on=None, alpha_offset=0.0, gaps=(0, 8), active_hint=3):
-    """Monta o texto RON de um ThemeBuilder v2."""
+    """Build the RON text of a ThemeBuilder v2."""
     c = FLAVORS[flavor]
     dark = flavor != "latte"
     frost_on = set(frost_on if frost_on is not None else (FROST_DEFAULT if frosted else []))
-    blur_key = frosted or "medium"   # com tudo desligado a intensidade não importa
+    blur_key = frosted or "medium"   # strength is irrelevant when everything is off
 
     lines = ["("]
     lines.append("    palette: %s((" % ("Dark" if dark else "Light"))
@@ -182,10 +182,10 @@ def build(flavor, accent, roundness="round", window_hint=None, frosted=None,
     def opt(name, color):
         lines.append('    %s: %s,' % (name, 'Some("%s")' % hexa(c[color]) if color else "None"))
 
-    # Contêineres e tinta dos controles só no escuro, como no tema oficial;
-    # no Latte o COSMIC calcula a partir da paleta.
+    # Containers and control tint only for dark flavors, as in the official
+    # theme; for Latte COSMIC derives them from the palette.
     opt("neutral_tint", "overlay1" if dark else None)
-    opt("bg_color", "base")                  # fundo das janelas
+    opt("bg_color", "base")                  # window background
     opt("primary_container_bg", "surface0" if dark else None)
     opt("secondary_container_bg", "surface1" if dark else None)
     opt("text_tint", "text")
@@ -197,12 +197,12 @@ def build(flavor, accent, roundness="round", window_hint=None, frosted=None,
     lines.append("    frosted: %s," % BLUR_BY_KEY[blur_key])
     lines.append("    gaps: (%d, %d)," % gaps)
     lines.append("    active_hint: %d," % active_hint)
-    opt("window_hint", window_hint or accent)  # borda da janela ativa
+    opt("window_hint", window_hint or accent)  # active window outline
     for t in FROST_TARGETS:
         lines.append("    frosted_%s: %s," % (t, "true" if t in frost_on else "false"))
 
-    # Opacidade de cada intensidade. O controle de opacidade em Aparência
-    # soma um deslocamento a todos os valores; --alpha-offset faz o mesmo.
+    # Opacity for each strength. The opacity slider under Appearance adds
+    # one offset to every value; --alpha-offset does the same.
     lines.append("    alpha_map: (")
     for _, key, a in BLUR:
         lines.append("        %s: %s," % (key, round(min(1.0, max(0.0, a + alpha_offset)), 5)))
@@ -220,24 +220,24 @@ def main():
     p.add_argument("--flavor", default="mocha", choices=FLAVORS)
     p.add_argument("--accent", default="mauve", choices=ACCENTS)
     p.add_argument("--roundness", default="round", choices=ROUNDNESS)
-    p.add_argument("--window-hint", choices=ACCENTS, help="cor da borda da janela ativa (padrão: o acento)")
+    p.add_argument("--window-hint", choices=ACCENTS, help="active window outline color (default: the accent)")
     p.add_argument("--frosted", choices=[k for _, k, _ in BLUR],
-                   help="liga o Frosted Glass com esta intensidade (ex.: medium)")
+                   help="turn on Frosted Glass at this strength (e.g. medium)")
     p.add_argument("--frost-on", default=",".join(FROST_DEFAULT),
-                   help="onde aplicar o Frosted Glass, separado por vírgula: %s" % ",".join(FROST_TARGETS))
+                   help="where to apply Frosted Glass, comma-separated: %s" % ",".join(FROST_TARGETS))
     p.add_argument("--alpha-offset", type=float, default=0.0,
-                   help="soma à opacidade (ex.: 0.1 = mais opaco, -0.1 = mais transparente)")
-    p.add_argument("--gaps", default="0,8", help="espaço externo,interno entre janelas")
-    p.add_argument("--active-hint", type=int, default=3, help="espessura da borda da janela ativa")
-    p.add_argument("-o", "--output", help="arquivo de saída (padrão: tela)")
+                   help="added to the opacity (e.g. 0.1 = more opaque, -0.1 = more transparent)")
+    p.add_argument("--gaps", default="0,8", help="outer,inner gap between windows")
+    p.add_argument("--active-hint", type=int, default=3, help="active window outline width")
+    p.add_argument("-o", "--output", help="output file (default: stdout)")
     p.add_argument("--all", metavar="DIR",
-                   help="gera todos os sabores e acentos, sólidos e com Frosted Glass, em DIR")
+                   help="write every flavor and accent, solid and frosted, into DIR")
     a = p.parse_args()
 
     frost_on = [t.strip() for t in a.frost_on.split(",") if t.strip()]
     bad = set(frost_on) - set(FROST_TARGETS)
     if bad:
-        p.error("--frost-on desconhecido: %s" % ", ".join(sorted(bad)))
+        p.error("unknown --frost-on value: %s" % ", ".join(sorted(bad)))
     gaps = tuple(int(x) for x in a.gaps.split(","))
     common = dict(roundness=a.roundness, window_hint=a.window_hint, alpha_offset=a.alpha_offset,
                   gaps=gaps, active_hint=a.active_hint)
@@ -253,7 +253,7 @@ def main():
                     with open(os.path.join(a.all, filename(flavor, accent, a.roundness, frosted)), "w") as f:
                         f.write(text)
                     n += 1
-        print("%d temas em %s" % (n, a.all), file=sys.stderr)
+        print("%d themes in %s" % (n, a.all), file=sys.stderr)
         return
 
     text = build(a.flavor, a.accent, frosted=a.frosted,

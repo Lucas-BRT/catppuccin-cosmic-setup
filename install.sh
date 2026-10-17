@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Instala o Catppuccin Mocha no Pop!_OS 24.04 com COSMIC.
+# Installs Catppuccin Mocha on Pop!_OS 24.04 with the COSMIC desktop.
 #
-# Uso:
-#   ./install.sh                 # todos os passos (com backup antes)
-#   ./install.sh icons wallpaper # só os passos citados
-#   ./install.sh --list          # mostra os passos
+# Usage:
+#   ./install.sh                 # every step (backs up first)
+#   ./install.sh icons wallpaper # only the listed steps
+#   ./install.sh --list          # list the steps
 #
-# Variáveis opcionais:
-#   FLAVOR=mocha   ACCENT=mauve  # outro acento: ACCENT=lavender ./install.sh
-#   FROSTED=auto|off|medium|...  # Frosted Glass (padrão: mantém o atual)
-#   FROST_ON=windows,panel,...   # onde o Frosted Glass vale
-#   ALPHA_OFFSET=0.1             # mais opaco (negativo = mais transparente)
-#   NO_APPLY=1                   # só gera o tema, não aplica
-#   NO_BACKUP=1                  # pula o backup
+# Optional variables:
+#   FLAVOR=mocha   ACCENT=mauve  # another accent: ACCENT=lavender ./install.sh
+#   FROSTED=auto|off|medium|...  # Frosted Glass (default: keep the current setting)
+#   FROST_ON=windows,panel,...   # where Frosted Glass applies
+#   ALPHA_OFFSET=0.1             # more opaque (negative = more transparent)
+#   NO_APPLY=1                   # only generate the theme, don't apply it
+#   NO_BACKUP=1                  # skip the backup
 #
-# Pode rodar quantas vezes quiser: cada passo sobrescreve o que ele mesmo
-# instalou e não duplica nada.
+# Safe to run any number of times: each step overwrites only what it
+# installed itself and never duplicates anything.
 # =============================================================================
 set -euo pipefail
 cd "$(dirname "$0")/scripts"
@@ -38,7 +38,7 @@ fi
 
 if [ $# -eq 0 ]; then selected=("${ORDER[@]}"); else selected=("$@"); fi
 for s in "${selected[@]}"; do
-    [ -n "${STEPS[$s]:-}" ] || { echo "Passo desconhecido: $s (veja --list)" >&2; exit 1; }
+    [ -n "${STEPS[$s]:-}" ] || { echo "Unknown step: $s (see --list)" >&2; exit 1; }
 done
 
 [ "${NO_BACKUP:-0}" = 1 ] || ./00-backup.sh
@@ -47,4 +47,4 @@ for s in "${ORDER[@]}"; do
 done
 
 echo
-echo "Pronto. Se ícones ou fundo não mudarem na hora, saia e entre na sessão."
+echo "Done. If icons or the wallpaper don't change right away, log out and back in."

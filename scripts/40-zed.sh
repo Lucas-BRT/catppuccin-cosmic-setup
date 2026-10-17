@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # =============================================================================
 # 40 · Zed
-# O Zed usa as extensões oficiais "Catppuccin" (cores) e "Catppuccin Icons"
-# (ícones). Extensões só são instaladas pelo próprio Zed (Ctrl+Shift+X).
-# Este passo confere o settings.json e diz o que falta, sem reescrever o
-# arquivo: ele tem comentários e outras preferências suas.
+# Zed uses the official "Catppuccin" (colors) and "Catppuccin Icons" (icons)
+# extensions. Extensions can only be installed from Zed itself
+# (Ctrl+Shift+X). This step checks settings.json and reports what is
+# missing, without rewriting the file: it holds comments and other
+# preferences of yours.
 #
-# Trecho esperado em ~/.config/zed/settings.json:
+# Expected snippet in ~/.config/zed/settings.json:
 #   "icon_theme": "Catppuccin Mocha",
 #   "theme": { "mode": "system", "light": "One Light", "dark": "Catppuccin Mocha" }
 # =============================================================================
@@ -16,19 +17,19 @@ info "Zed"
 settings="$HOME/.config/zed/settings.json"
 name="Catppuccin ${FLAVOR^}"   # mocha → Mocha
 if ! command -v zed >/dev/null && ! command -v zeditor >/dev/null; then
-    warn "Zed não encontrado, pulando"; exit 0
+    warn "Zed not found, skipping"; exit 0
 fi
 ext="$HOME/.local/share/zed/extensions/installed"
 for e in catppuccin catppuccin-icons; do
-    [ -d "$ext/$e" ] && ok "Extensão $e instalada" || todo "Instale a extensão \"$e\" no Zed (Ctrl+Shift+X)"
+    [ -d "$ext/$e" ] && ok "Extension $e installed" || todo "Install the \"$e\" extension in Zed (Ctrl+Shift+X)"
 done
 if grep -q "\"dark\": *\"$name\"" "$settings" 2>/dev/null; then
-    ok "Tema do editor: $name"
+    ok "Editor theme: $name"
 else
-    todo "Em $settings, use \"theme\": { \"dark\": \"$name\" }"
+    todo "In $settings, set \"theme\": { \"dark\": \"$name\" }"
 fi
 if grep -q "\"icon_theme\": *\"$name\"" "$settings" 2>/dev/null; then
-    ok "Ícones do editor: $name"
+    ok "Editor icons: $name"
 else
-    todo "Em $settings, use \"icon_theme\": \"$name\""
+    todo "In $settings, set \"icon_theme\": \"$name\""
 fi

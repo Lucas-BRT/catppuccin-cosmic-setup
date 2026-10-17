@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Gera o papel de parede Catppuccin Mocha (PNG 2560x1440).
+"""Generate the Catppuccin Mocha wallpaper (2560x1440 PNG).
 
-Só usa a biblioteca padrão (zlib/struct), então roda em qualquer Python 3
-sem instalar nada. O resultado é determinístico: rodar de novo gera
-exatamente o mesmo arquivo.
+Uses only the standard library (zlib/struct), so it runs on any Python 3
+with nothing to install. Output is deterministic: running it again
+produces the exact same file.
 
-Uso:
-    python3 wallpaper/generate.py saida.png [largura altura]
+Usage:
+    python3 wallpaper/generate.py output.png [width height]
 
-Desenho:
-  * fundo em degradê diagonal entre Crust (#11111b) e Base (#1e1e2e);
-  * três brilhos suaves: Mauve embaixo à direita, Blue em cima à esquerda
-    e Pink bem fraco na borda de baixo;
-  * um pouco de ruído fixo para evitar faixas visíveis no degradê.
+Design:
+  * diagonal gradient between Crust (#11111b) and Base (#1e1e2e);
+  * three soft glows: Mauve bottom right, Blue top left and a faint Pink
+    along the bottom edge;
+  * a little fixed noise to avoid visible banding in the gradient.
 """
 import math
 import struct
@@ -22,7 +22,7 @@ import zlib
 CRUST = (17, 17, 27)  # #11111b
 BASE = (30, 30, 46)   # #1e1e2e
 
-# (centro x, centro y) em fração da tela, raio, cor, intensidade
+# (center x, center y) as a fraction of the screen, radius, color, strength
 GLOWS = [
     ((0.82, 0.85), 0.55, (203, 166, 247), 0.35),  # Mauve #cba6f7
     ((0.12, 0.10), 0.50, (137, 180, 250), 0.22),  # Blue  #89b4fa
@@ -32,17 +32,17 @@ GLOWS = [
 
 def pixel(x, y, w, h):
     fx, fy = x / w, y / h
-    # Degradê: mais escuro (Crust) nas pontas da diagonal, Base no meio.
+    # Gradient: darker (Crust) at both ends of the diagonal, Base in the middle.
     t = fx * 0.4 + fy * 0.6
     c = [CRUST[i] + (BASE[i] - CRUST[i]) * (1 - abs(t - 0.5) * 2) ** 0.5 for i in range(3)]
     for (gx, gy), r, col, a in GLOWS:
-        # 1.78 ≈ 16/9 deixa os brilhos redondos numa tela widescreen.
+        # 1.78 ≈ 16/9 keeps the glows round on a widescreen display.
         d = math.hypot((fx - gx) * 1.78, fy - gy) / r
         if d < 1:
             k = a * (1 - d) ** 2.2
             for i in range(3):
                 c[i] += (col[i] - c[i]) * k
-    # Ruído fixo e barato (hash das coordenadas), entre -2 e +2.
+    # Cheap fixed noise (a hash of the coordinates), between -2 and +2.
     n = ((x * 73856093 ^ y * 19349663) & 7) - 3.5
     return bytes(max(0, min(255, int(v + n * 0.6))) for v in c)
 
