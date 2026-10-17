@@ -54,11 +54,11 @@ Papirus icons.
 | Step | What it does |
 | --- | --- |
 | *(backup)* | copies `~/.config/cosmic`, `~/.bashrc` and Zed's `settings.json` to `~/.config/catppuccin-backup-<date>/` |
-| `cosmic` | generates the desktop theme and applies it with `cosmic-settings appearance import` |
+| `cosmic` | generates the desktop theme and applies it with `cosmic-settings appearance import`, keeping your interface density |
 | `terminal` | downloads the COSMIC Terminal scheme (import it by hand, see below) |
 | `bash` | installs the prompt and adds one marked block to `~/.bashrc` |
 | `zed` | only checks your Zed setup and tells you what is missing |
-| `icons` | Papirus in `~/.local/share/icons` with `cat-<flavor>-<accent>` folders, no `sudo` |
+| `icons` | Papirus in `~/.local/share/icons` with `cat-<flavor>-<accent>` folders, no `sudo`; window buttons stay COSMIC's own |
 | `wallpaper` | renders a wallpaper and sets it as the background |
 
 ### Terminal

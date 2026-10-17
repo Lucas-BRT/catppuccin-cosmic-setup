@@ -45,7 +45,12 @@ if [ "$FROSTED" = auto ]; then
     current_frost || FROSTED=off
 fi
 
-args=(--flavor "$FLAVOR" --accent "$ACCENT" --alpha-offset "${ALPHA_OFFSET:-0}")
+# The theme carries the interface spacing, so match the density chosen under
+# Appearance (Compact / Standard / Spacious) instead of resetting it.
+density=$(tr -d '"' < "$COSMIC_DIR/com.system76.CosmicTk/v1/interface_density" 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)
+case "$density" in compact | standard | spacious) ;; *) density=standard ;; esac
+
+args=(--flavor "$FLAVOR" --accent "$ACCENT" --alpha-offset "${ALPHA_OFFSET:-0}" --density "$density")
 if [ "$FROSTED" = off ]; then
     label="solid"
 else

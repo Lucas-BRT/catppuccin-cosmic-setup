@@ -77,6 +77,18 @@ const BLUR: [(&str, &str, f64); 14] = [
     ("ExtremelyHigh2", "extremely_high_2", 0.6),
 ];
 
+/// Spacing for each interface density (libcosmic's `From<Density> for
+/// Spacing`). The theme carries the spacing, so it must match the density
+/// chosen under Appearance or the layout changes when the theme is imported.
+const SPACING_KEYS: [&str; 10] = [
+    "none", "xxxs", "xxs", "xs", "s", "m", "l", "xl", "xxl", "xxxl",
+];
+const DENSITY: [(&str, [u32; 10]); 3] = [
+    ("compact", [0, 4, 4, 8, 8, 16, 24, 32, 48, 64]),
+    ("standard", [0, 4, 8, 12, 16, 24, 32, 48, 64, 128]), // COSMIC default
+    ("spacious", [4, 8, 12, 16, 24, 32, 48, 64, 128, 160]),
+];
+
 /// Where Frosted Glass applies, in the order of the toggles under Appearance.
 const FROST_TARGETS: [&str; 5] = [
     "windows",
@@ -100,6 +112,7 @@ pub struct Options {
     pub alpha_offset: f64,
     pub gaps: (i64, i64),
     pub active_hint: i64,
+    pub density: String,
 }
 
 impl Default for Options {
@@ -114,6 +127,7 @@ impl Default for Options {
             alpha_offset: 0.0,
             gaps: (0, 8),
             active_hint: 3,
+            density: "standard".into(),
         }
     }
 }
@@ -165,19 +179,12 @@ pub fn build(o: &Options) -> String {
     l.push("    )),".into());
 
     l.push("    spacing: (".into());
-    let spacing = [
-        ("none", 0),
-        ("xxxs", 4),
-        ("xxs", 8),
-        ("xs", 12),
-        ("s", 16),
-        ("m", 24),
-        ("l", 32),
-        ("xl", 48),
-        ("xxl", 64),
-        ("xxxl", 128),
-    ];
-    for (k, v) in spacing {
+    let spacing = DENSITY
+        .iter()
+        .find(|(n, _)| *n == o.density)
+        .expect("validated density")
+        .1;
+    for (k, v) in SPACING_KEYS.iter().zip(spacing) {
         l.push(format!("        space_{k}: {v},"));
     }
     l.push("    ),".into());
@@ -274,6 +281,8 @@ Options:
   --alpha-offset N     added to the opacity (0.1 more opaque, -0.1 more transparent)
   --gaps OUTER,INNER   gaps between windows (default: 0,8)
   --active-hint N      active window outline width (default: 3)
+  --density NAME       spacing for the interface density set under Appearance:
+                       compact, standard (default), spacious
   -o, --output FILE    write to FILE
   --all DIR            write every flavor and accent into DIR
   -h, --help           show this help
@@ -324,6 +333,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
                     .parse()
                     .map_err(|_| format!("invalid --active-hint '{v}'"))?;
             }
+            "--density" => o.density = value("--density")?,
             "-o" | "--output" => output = Some(value("--output")?.into()),
             "--all" => all = Some(value("--all")?.into()),
             s => return Err(format!("unexpected argument '{s}' (see --help)")),
@@ -338,6 +348,12 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
         return Err(format!(
             "unknown roundness '{}' (choose: round, slightlyround, square)",
             o.roundness
+        ));
+    }
+    if !DENSITY.iter().any(|(n, _)| *n == o.density) {
+        return Err(format!(
+            "unknown density '{}' (choose: compact, standard, spacious)",
+            o.density
         ));
     }
     if let Some(f) = &o.frosted
@@ -419,6 +435,12 @@ mod tests {
                 alpha_offset: 0.15,
                 gaps: (4, 12),
                 active_hint: 1,
+                density: if roundness == "square" {
+                    "compact"
+                } else {
+                    "spacious"
+                }
+                .into(),
                 ..Options::default()
             });
         }
@@ -443,6 +465,13 @@ mod tests {
                 o.frosted.is_some() && o.frost_on.iter().any(|t| t == "panel")
             );
             assert_eq!(b.gaps, (o.gaps.0 as u32, o.gaps.1 as u32));
+            // COSMIC must read the spacing back as the same density.
+            let density = match cosmic_theme::Density::from(b.spacing) {
+                cosmic_theme::Density::Compact => "compact",
+                cosmic_theme::Density::Standard => "standard",
+                cosmic_theme::Density::Spacious => "spacious",
+            };
+            assert_eq!(density, o.density);
             let theme = b.build();
             let accent = Palette::new(&o.flavor).unwrap().get(&o.accent);
             let got = theme.accent_color();

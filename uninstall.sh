@@ -32,7 +32,8 @@ sed -i '/^# >>> catppuccin-cosmic-setup >>>$/,/^# <<< catppuccin-cosmic-setup <<
 ok "Settings restored"
 
 if [ "${PURGE:-0}" = 1 ]; then
-    rm -rf "$ICONS_DIR/Papirus" "$ICONS_DIR/Papirus-Dark" "$DATA_DIR" \
+    rm -rf "$ICONS_DIR/Papirus" "$ICONS_DIR/Papirus-Dark" \
+           "$ICONS_DIR/Papirus-Catppuccin" "$ICONS_DIR/Papirus-Dark-Catppuccin" "$DATA_DIR" \
            "$HOME/.config/catppuccin" "$CACHE_DIR" \
            "$HOME"/Pictures/Wallpapers/catppuccin-*.png \
            "$HOME"/Pictures/Wallpapers/catppuccin-*/ \
