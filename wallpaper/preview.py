@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render a preview grid of every wallpaper style in every flavor.
 
-Rows are flavors, columns are styles, each thumbnail rendered at a small
+Rows are styles, columns are flavors, each thumbnail rendered at a small
 size with the same code as the full wallpaper. Used for the README image.
 
 Usage:
@@ -25,8 +25,8 @@ def main():
     a = p.parse_args()
     tw, th = (int(v) for v in a.thumb.lower().split("x"))
     styles, flavors = list(STYLES), list(FLAVORS)
-    w = len(styles) * tw + (len(styles) + 1) * GAP
-    h = len(flavors) * th + (len(flavors) + 1) * GAP
+    w = len(flavors) * tw + (len(flavors) + 1) * GAP
+    h = len(styles) * th + (len(styles) + 1) * GAP
     bg = bytes(rgb("mocha", "crust"))
 
     # Each thumbnail as a list of RGB rows (render() output minus the PNG
@@ -40,11 +40,11 @@ def main():
 
     rows = []
     gap_row = b"\x00" + bg * w
-    for fi, fl in enumerate(flavors):
+    for st in styles:
         rows.extend([gap_row] * GAP)
         for r in range(th):
             line = bg * GAP
-            for st in styles:
+            for fl in flavors:
                 line += thumbs[fl, st][r] + bg * GAP
             rows.append(b"\x00" + line)
     rows.extend([gap_row] * GAP)

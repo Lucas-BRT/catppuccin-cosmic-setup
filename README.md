@@ -50,7 +50,7 @@ WALLPAPER_STYLE=all WALLPAPER_ROTATE=30m ./install.sh wallpaper   # ...as a slid
 | `FROSTED`      | `auto`  | `auto` keeps the current Frosted Glass setting, `off` disables it, or a strength: `extremely_low`, `extremely_low_2`, `very_low`, `very_low_2`, `low`, `low_2`, `medium`, `medium_2`, `high`, `high_2`, `very_high`, `very_high_2`, `extremely_high`, `extremely_high_2` |
 | `FROST_ON`     | all but `maximized_apps` | Where Frosted Glass applies: `windows`, `system_interface`, `panel`, `applets`, `maximized_apps` |
 | `ALPHA_OFFSET` | `0`     | Added to the Frosted Glass opacity (`0.1` = more opaque, `-0.1` = more transparent) |
-| `WALLPAPER_STYLE` | `glow` | Wallpaper style: `glow`, `waves`, `stripes`, `dots`, `triangles`, or `all` to put every style in a folder for COSMIC's wallpaper picker (see [Wallpaper](#wallpaper)) |
+| `WALLPAPER_STYLE` | `glow` | Wallpaper style: `glow`, `waves`, `stripes`, `dots`, `triangles`, `mesh`, `aurora`, `sunset`, `topography`, `mountains`, or `all` to put every style in a folder for COSMIC's wallpaper picker (see [Wallpaper](#wallpaper)) |
 | `WALLPAPER_ROTATE` | — | With `WALLPAPER_STYLE=all`: also make that folder the background as a slideshow, every `5m`, `10m`, `15m`, `30m`, `1h` or `2h` |
 | `NO_APPLY`     | `0`     | `1` only generates the theme, without applying it |
 | `NO_BACKUP`    | `0`     | `1` skips the backup                           |
@@ -166,9 +166,10 @@ lib/catppuccin.py render latte blue < template > output   # fills @<color>@ plac
 
 ### Wallpaper
 
-Five procedural styles, each drawn only with the chosen flavor's palette
-and accent. Rows below are Latte, Frappé, Macchiato and Mocha; columns are
-`glow`, `waves`, `stripes`, `dots` and `triangles` (all with the Mauve accent):
+Ten procedural styles, each drawn only with the chosen flavor's palette
+and accent. In the grid below, columns are Latte, Frappé, Macchiato and
+Mocha, and rows are the styles in the order of the table (all with the
+Mauve accent):
 
 ![Wallpaper styles in every flavor](wallpaper/previews.png)
 
@@ -179,6 +180,11 @@ and accent. Rows below are Latte, Frappé, Macchiato and Mocha; columns are
 | `stripes`   | A diagonal ribbon in the lower right: the accent and its neighbor colors |
 | `dots`      | Halftone dots in the accent, growing toward the lower right   |
 | `triangles` | Low-poly triangles in surface tones, tinted by the accent toward the lower right |
+| `mesh`      | A soft mesh gradient blending the accent with two companion colors |
+| `aurora`    | Curtains of light in the accent and Teal over a night sky and dark hills |
+| `sunset`    | A retro sun cut by stripes over a perspective grid           |
+| `topography`| Contour lines like a topographic map; every fifth line bolder, warming to the accent |
+| `mountains` | Layered mountain ridges under a moon                         |
 
 - **Generator:** [`wallpaper/generate.py`](wallpaper/generate.py), Python
   standard library only. The same options always produce the same image.
@@ -195,7 +201,7 @@ and accent. Rows below are Latte, Frappé, Macchiato and Mocha; columns are
 WALLPAPER_STYLE=all ./install.sh wallpaper
 ```
 
-Renders all five styles (in parallel, about 20 seconds) into
+Renders all ten styles (in parallel, about 20 seconds on a multi-core CPU) into
 `~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>/` and adds that folder
 to **Settings → Desktop → Wallpaper**, already selected. The current
 background is left alone: pick an image there, or turn on the slideshow and
