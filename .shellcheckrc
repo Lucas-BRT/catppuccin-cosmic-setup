@@ -1,0 +1,2 @@
+# Let ShellCheck follow `source` lines relative to each script.
+source-path=SCRIPTDIR

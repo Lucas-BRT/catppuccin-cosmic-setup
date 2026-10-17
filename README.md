@@ -54,6 +54,7 @@ WALLPAPER_STYLE=all WALLPAPER_ROTATE=30m ./install.sh wallpaper   # ...as a slid
 | `WALLPAPER_ROTATE` | — | With `WALLPAPER_STYLE=all`: also make that folder the background as a slideshow, every `5m`, `10m`, `15m`, `30m`, `1h` or `2h` |
 | `NO_APPLY`     | `0`     | `1` only generates the theme, without applying it |
 | `NO_BACKUP`    | `0`     | `1` skips the backup                           |
+| `BUILD_FROM_SOURCE` | `0` | `1` builds the wallpaper generator with `cargo` instead of downloading the prebuilt binary |
 
 Every step follows `FLAVOR` and `ACCENT`: desktop theme, terminal scheme,
 prompt colors, folder color, wallpaper and the Zed theme name. Latte is the
@@ -186,10 +187,17 @@ Mauve accent):
 | `topography`| Contour lines like a topographic map; every fifth line bolder, warming to the accent |
 | `mountains` | Layered mountain ridges under a moon                         |
 
-- **Generator:** [`wallpaper/generate.py`](wallpaper/generate.py), Python
-  standard library only. The same options always produce the same image.
-- **Pre-rendered image:** `wallpaper/catppuccin-mocha-mauve.png` (2560×1440,
-  `glow`). Anything else is rendered during install (about 10-20 seconds).
+- **Generator:** `ctp-wallpaper`, a small Rust program in [`wallpaper/`](wallpaper)
+  that renders rows in parallel. Colors come from the official
+  [`catppuccin`](https://crates.io/crates/catppuccin) crate. The same
+  options always produce the same image, in about 0.1 s at 2560×1440 (all
+  ten styles in about half a second).
+- **How the installer gets it:** it downloads the static binary for your
+  CPU (x86_64 or aarch64) from this repository's
+  [Releases](https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases)
+  and runs it only if its SHA-256 matches [`wallpaper/SHA256SUMS`](wallpaper/SHA256SUMS),
+  which is committed here. If there is no binary for your machine, or with
+  `BUILD_FROM_SOURCE=1`, it builds the generator with `cargo` instead.
 - **File name:** `~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>.png`
   for `glow`, `catppuccin-<flavor>-<accent>-<style>.png` for the others.
 - **Config:** [`config/cosmic/background-all.ron`](config/cosmic/background-all.ron)
@@ -201,7 +209,7 @@ Mauve accent):
 WALLPAPER_STYLE=all ./install.sh wallpaper
 ```
 
-Renders all ten styles (in parallel, about 20 seconds on a multi-core CPU) into
+Renders all ten styles (about half a second) into
 `~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>/` and adds that folder
 to **Settings → Desktop → Wallpaper**, already selected. The current
 background is left alone: pick an image there, or turn on the slideshow and
@@ -226,12 +234,15 @@ What gets written, mirroring what COSMIC Settings itself does:
 | `com.system76.CosmicSettings.Wallpaper/v1/rotation-frequency` | with `WALLPAPER_ROTATE` only: the interval in seconds |
 | `com.system76.CosmicBackground/v1/all` | with `WALLPAPER_ROTATE` only: `source: Path("<folder>")` and `rotation_frequency` |
 
-To render any combination or resolution by hand:
+To render any combination or resolution by hand (`cargo build --release`
+in `wallpaper/`, or use the binary the installer cached in
+`~/.cache/catppuccin-cosmic-setup/bin/`):
 
 ```bash
-python3 wallpaper/generate.py out.png --style dots --flavor macchiato --accent teal --size 3840x2160
-python3 wallpaper/generate.py --list-styles
-python3 wallpaper/preview.py wallpaper/previews.png --accent mauve   # rebuild the grid above
+ctp-wallpaper out.png --style dots --flavor macchiato --accent teal --size 3840x2160
+ctp-wallpaper --all out-dir/ --flavor latte --accent blue   # every style
+ctp-wallpaper --describe-styles
+ctp-wallpaper --preview wallpaper/previews.png              # rebuild the grid above
 ```
 
 ## The COSMIC 1.10 format
@@ -273,6 +284,26 @@ PURGE=1 ./uninstall.sh         # also delete Papirus, themes and the wallpaper
 cosmic-settings appearance import ~/.config/catppuccin-backup-.../previous-theme.ron   # theme only
 ```
 
+## Releasing the wallpaper generator
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) builds
+static (musl) binaries for x86_64 and aarch64 whenever a `wallpaper-v*` tag
+is pushed, and publishes them with a `SHA256SUMS` file. To release:
+
+```bash
+# 1. bump version in wallpaper/Cargo.toml, commit, then:
+git tag wallpaper-v0.2.0 && git push origin wallpaper-v0.2.0
+# 2. once the release workflow finishes, pin it and commit:
+scripts/dev/pin-wallpaper-release.sh wallpaper-v0.2.0
+git commit -am "Pin ctp-wallpaper 0.2.0" && git push
+```
+
+Until step 2 is committed the installer keeps using the previously pinned
+release, so a release can never reach users without its hashes being
+reviewed in a commit. [CI](.github/workflows/ci.yml) runs `rustfmt`,
+Clippy, the Rust tests, ShellCheck, and checks that the Rust palette,
+`lib/catppuccin.py` and the committed themes all agree.
+
 ## Updating upstream versions
 
 The pinned commits live in [`scripts/lib.sh`](scripts/lib.sh)
@@ -290,7 +321,9 @@ config/bash/                   bash prompt template
 config/cosmic/                 values written to cosmic-config
 themes/generate.py             COSMIC 1.10 theme generator (with Frosted Glass)
 themes/cosmic-settings/        ready-made Mocha themes, solid and frosted (others generated on install)
-wallpaper/                     wallpaper generator, preview grid and the default image
+wallpaper/                     ctp-wallpaper (Rust), README preview grid, pinned release hashes
+scripts/dev/                   maintainer helpers (pinning a release)
+.github/workflows/             CI and binary releases
 ```
 
 ## Credits

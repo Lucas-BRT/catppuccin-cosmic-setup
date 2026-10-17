@@ -6,6 +6,7 @@
 # adds a marked block to ~/.bashrc that sources it. The markers let the
 # block be replaced or removed without touching the rest of the file.
 # =============================================================================
+# shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
 info "Bash prompt ($FLAVOR, $ACCENT accent)"

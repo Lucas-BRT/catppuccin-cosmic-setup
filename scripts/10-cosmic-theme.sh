@@ -20,6 +20,7 @@
 # Also writes every flavor and accent, solid and frosted, to
 # ~/.local/share/catppuccin/themes/cosmic-settings/ for manual import.
 # =============================================================================
+# shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
 builder="$COSMIC_DIR/com.system76.CosmicTheme.Dark.Builder/v2"
@@ -34,7 +35,7 @@ current_frost() {
     done
     [ ${#on[@]} -gt 0 ] || return 1
     # "ExtremelyLow2" → "extremely_low_2", the name the generator expects.
-    FROSTED=$(sed -E 's/([a-z])([A-Z0-9])/\1_\2/g' "$builder/frosted" 2>/dev/null | tr 'A-Z' 'a-z')
+    FROSTED=$(sed -E 's/([a-z])([A-Z0-9])/\1_\2/g' "$builder/frosted" 2>/dev/null | tr '[:upper:]' '[:lower:]')
     FROSTED=${FROSTED:-medium}
     FROST_ON=$(IFS=,; echo "${on[*]}")
 }

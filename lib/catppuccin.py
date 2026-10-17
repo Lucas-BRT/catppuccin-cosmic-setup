@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """The Catppuccin palette: the single source of colors for this project.
 
-Imported by themes/generate.py and wallpaper/generate.py, and used from the
-shell scripts through a small CLI:
+Imported by themes/generate.py and used from the shell scripts through a
+small CLI. (The wallpaper generator, written in Rust, uses the official
+`catppuccin` crate; CI checks that both agree via `dump`.)
 
     lib/catppuccin.py check FLAVOR ACCENT     # exit 1 with a message if invalid
     lib/catppuccin.py name FLAVOR             # "Mocha", "Frappé", ...
     lib/catppuccin.py is-dark FLAVOR          # exit 0 if dark, 1 if light
     lib/catppuccin.py rgb FLAVOR COLOR        # "137;180;250" (for ANSI escapes)
     lib/catppuccin.py render FLAVOR ACCENT    # stdin → stdout, see below
+    lib/catppuccin.py dump                    # every color as "flavor color rrggbb"
 
 `render` replaces every @<color>@ placeholder (e.g. @blue@, @overlay0@) with
 that color as "R;G;B", and @accent@ with the chosen accent. That is how the
@@ -92,6 +94,11 @@ def check(flavor, accent=None):
 
 
 def main(argv):
+    if argv == ["dump"]:
+        for flavor, colors in FLAVORS.items():
+            for name, hexv in colors.items():
+                print(flavor, name, hexv)
+        return 0
     if len(argv) < 2:
         raise SystemExit(__doc__)
     cmd, args = argv[0], argv[1:]

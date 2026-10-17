@@ -14,6 +14,7 @@
 #     catppuccin-<flavor>-<accent>/ folders made by WALLPAPER_STYLE=all).
 # =============================================================================
 set -euo pipefail
+# shellcheck source=scripts/lib.sh
 source "$(dirname "$0")/scripts/lib.sh"
 
 backup="${1:-$(cat "$CACHE_DIR/last-backup" 2>/dev/null || true)}"

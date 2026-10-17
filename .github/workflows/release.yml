@@ -1,0 +1,82 @@
+name: Release ctp-wallpaper
+
+# Push a tag like wallpaper-v0.1.0 (matching wallpaper/Cargo.toml) to build
+# static Linux binaries and publish them with a SHA256SUMS file. Afterwards,
+# run scripts/dev/pin-wallpaper-release.sh <tag> and commit the result so the
+# installer uses (and verifies) the new binaries.
+
+on:
+  push:
+    tags: ["wallpaper-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - { arch: x86_64, os: ubuntu-24.04, target: x86_64-unknown-linux-musl }
+          - { arch: aarch64, os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Tag matches Cargo.toml version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' wallpaper/Cargo.toml | head -1)
+          [ "$TAG" = "wallpaper-v$version" ] || {
+            echo "::error::tag $TAG does not match wallpaper/Cargo.toml version $version"
+            exit 1
+          }
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build static binary
+        env:
+          TARGET: ${{ matrix.target }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          cargo build --release --locked --target "$TARGET" --manifest-path wallpaper/Cargo.toml
+          mkdir dist
+          cp "wallpaper/target/$TARGET/release/ctp-wallpaper" "dist/ctp-wallpaper-$ARCH-linux"
+      - name: Smoke test
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          bin="dist/ctp-wallpaper-$ARCH-linux"
+          file "$bin"
+          "$bin" --all "$RUNNER_TEMP/out" --flavor latte --accent teal
+          test "$(ls "$RUNNER_TEMP/out" | wc -l)" -eq "$("$bin" --list-styles | wc -l)"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ctp-wallpaper-${{ matrix.arch }}
+          path: dist/
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          cd dist
+          sha256sum ctp-wallpaper-* > SHA256SUMS
+          cat SHA256SUMS
+          gh release create "$TAG" --repo "$REPO" --title "ctp-wallpaper ${TAG#wallpaper-v}" \
+            --notes "Static Linux builds of the wallpaper generator (x86_64 and aarch64). The installer downloads these and checks them against wallpaper/SHA256SUMS in the repository." \
+            ctp-wallpaper-* SHA256SUMS

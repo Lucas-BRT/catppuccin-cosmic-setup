@@ -3,6 +3,8 @@
 # Shared functions and variables. Not meant to be run directly: every
 # scripts/NN-*.sh sources this file.
 # =============================================================================
+# The variables defined here are used by the scripts that source this file.
+# shellcheck disable=SC2034
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,11 +22,14 @@ ACCENT="${ACCENT:-mauve}"
 ctp() { python3 -I "$REPO_DIR/lib/catppuccin.py" "$@"; }
 ctp check "$FLAVOR" "$ACCENT"
 
-# Wallpaper style (see `wallpaper/generate.py --list-styles`), or "all" to
-# render every style into a folder for COSMIC's wallpaper picker. The
-# default "glow" keeps the plain catppuccin-<flavor>-<accent>.png name.
+# Wallpaper style, or "all" to render every style into a folder for COSMIC's
+# wallpaper picker. The default "glow" keeps the plain
+# catppuccin-<flavor>-<accent>.png name. The style names are read from the
+# generator's source (wallpaper/src/styles.rs) so they can be validated
+# before anything is downloaded or built; CI checks this matches
+# `ctp-wallpaper --list-styles`.
 WALLPAPER_STYLE="${WALLPAPER_STYLE:-glow}"
-WALLPAPER_STYLES=$(python3 -I "$REPO_DIR/wallpaper/generate.py" --list-styles)
+WALLPAPER_STYLES=$(sed -n 's/^    ("\([a-z]*\)", ".*/\1/p' "$REPO_DIR/wallpaper/src/styles.rs")
 if [ "$WALLPAPER_STYLE" != all ] && ! grep -qx "$WALLPAPER_STYLE" <<<"$WALLPAPER_STYLES"; then
     echo "unknown wallpaper style '$WALLPAPER_STYLE' (choose: $(paste -sd, <<<"$WALLPAPER_STYLES" | sed 's/,/, /g'), all)" >&2
     exit 1
@@ -93,3 +98,60 @@ cosmic_set() {
 
 # Strip // comments from one of the repo's RON files before installing it.
 strip_ron_comments() { sed -e 's#[[:space:]]*//.*$##' -e '/^[[:space:]]*$/d' "$1"; }
+
+# --- wallpaper generator binary ---------------------------------------------
+# ctp-wallpaper (wallpaper/, Rust) is published as a prebuilt static binary on
+# GitHub Releases. wallpaper/RELEASE names the release tag to use and
+# wallpaper/SHA256SUMS pins the hash of each binary, so a download is only
+# ever run if it matches what is committed in this repository.
+GITHUB_REPO=Lucas-BRT/catppuccin-cosmic-setup
+
+# Set WALLPAPER_BIN to a usable ctp-wallpaper: the verified prebuilt binary
+# when one exists for this machine, otherwise a local build with cargo.
+# BUILD_FROM_SOURCE=1 always builds locally.
+wallpaper_bin() {
+    local tag arch asset expected bin
+    tag=$(cat "$REPO_DIR/wallpaper/RELEASE" 2>/dev/null || true)
+    case "$(uname -m)" in
+        x86_64 | amd64) arch=x86_64 ;;
+        aarch64 | arm64) arch=aarch64 ;;
+        *) arch="" ;;
+    esac
+    asset="ctp-wallpaper-$arch-linux"
+    expected=$(awk -v a="$asset" '$2 == a { print $1 }' "$REPO_DIR/wallpaper/SHA256SUMS" 2>/dev/null || true)
+
+    if [ "${BUILD_FROM_SOURCE:-0}" != 1 ] && [ -n "$tag" ] && [ -n "$arch" ] && [ -n "$expected" ]; then
+        bin="$CACHE_DIR/bin/$tag/$asset"
+        if ! sha256sum -c --status <<<"$expected  $bin" 2>/dev/null; then
+            mkdir -p "$(dirname "$bin")"
+            if curl -fsSL --proto '=https' --tlsv1.2 -o "$bin.part" \
+                "https://github.com/$GITHUB_REPO/releases/download/$tag/$asset"; then
+                if ! sha256sum -c --status <<<"$expected  $bin.part"; then
+                    rm -f "$bin.part"
+                    echo "ctp-wallpaper download does not match wallpaper/SHA256SUMS; refusing to run it" >&2
+                    exit 1
+                fi
+                chmod +x "$bin.part"
+                mv "$bin.part" "$bin"
+            else
+                rm -f "$bin.part"
+                warn "Could not download ctp-wallpaper $tag; trying a local build"
+                bin=""
+            fi
+        fi
+        if [ -n "$bin" ]; then
+            WALLPAPER_BIN=$bin
+            return 0
+        fi
+    fi
+
+    if ! command -v cargo >/dev/null; then
+        echo "no prebuilt ctp-wallpaper for $(uname -m) and cargo is not installed;" >&2
+        echo "install Rust from https://rustup.rs and run the installer again" >&2
+        exit 1
+    fi
+    info "Building ctp-wallpaper with cargo (first time takes a minute)"
+    cargo build --release --locked --quiet \
+        --manifest-path "$REPO_DIR/wallpaper/Cargo.toml" --target-dir "$CACHE_DIR/target"
+    WALLPAPER_BIN="$CACHE_DIR/target/release/ctp-wallpaper"
+}

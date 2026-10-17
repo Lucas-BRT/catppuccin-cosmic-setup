@@ -8,6 +8,7 @@
 # 4. Sets the COSMIC icon theme: Papirus-Dark for dark flavors, Papirus
 #    (light) for Latte, so icons stay readable on the background.
 # =============================================================================
+# shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
 info "$ICON_THEME icons (cat-$FLAVOR-$ACCENT folders)"

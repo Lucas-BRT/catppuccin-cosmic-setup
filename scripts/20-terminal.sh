@@ -10,6 +10,7 @@
 # theme's background (Base #1e1e2e), so it also turns translucent with
 # Frosted Glass.
 # =============================================================================
+# shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
 info "COSMIC Terminal"

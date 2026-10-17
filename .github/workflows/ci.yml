@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  wallpaper:
+    name: Wallpaper generator (Rust)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: wallpaper
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          components: rustfmt, clippy
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --release --locked -- -D warnings
+      - name: Test
+        run: cargo test --release --locked
+      - name: Build
+        run: cargo build --release --locked
+      - name: Palette matches lib/catppuccin.py
+        run: diff <(target/release/ctp-wallpaper --dump-palette | sort) <(python3 ../lib/catppuccin.py dump | sort)
+      - name: Style list matches scripts/lib.sh parsing
+        run: diff <(sed -n 's/^    ("\([a-z]*\)", ".*/\1/p' src/styles.rs) <(target/release/ctp-wallpaper --list-styles)
+
+  scripts:
+    name: Installer scripts and themes
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: ShellCheck
+        run: shellcheck -x install.sh uninstall.sh scripts/*.sh scripts/dev/*.sh
+      - name: Generated COSMIC themes are up to date
+        run: |
+          python3 themes/generate.py --all "$RUNNER_TEMP/themes"
+          for f in themes/cosmic-settings/*.ron; do
+            cmp "$f" "$RUNNER_TEMP/themes/$(basename "$f")" || {
+              echo "::error::$f is stale; run: themes/generate.py --all and copy the Mocha files"
+              exit 1
+            }
+          done
+      - name: Pinned wallpaper release is complete
+        run: |
+          if [ -f wallpaper/RELEASE ]; then
+            for arch in x86_64 aarch64; do
+              grep -q " ctp-wallpaper-$arch-linux\$" wallpaper/SHA256SUMS
+            done
+          fi

@@ -6,6 +6,7 @@
 # ~/.cache/catppuccin-cosmic-setup/last-backup (used by uninstall.sh).
 # The current theme is also exported as previous-theme.ron.
 # =============================================================================
+# shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
 dest="$HOME/.config/catppuccin-backup-$(date +%F-%H%M%S)"

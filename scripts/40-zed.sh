@@ -12,6 +12,7 @@
 #   "icon_theme": "Catppuccin Mocha",
 #   "theme": { "mode": "system", "light": "One Light", "dark": "Catppuccin Mocha" }
 # =============================================================================
+# shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
 info "Zed"
@@ -23,7 +24,11 @@ if ! command -v zed >/dev/null && ! command -v zeditor >/dev/null; then
 fi
 ext="$HOME/.local/share/zed/extensions/installed"
 for e in catppuccin catppuccin-icons; do
-    [ -d "$ext/$e" ] && ok "Extension $e installed" || todo "Install the \"$e\" extension in Zed (Ctrl+Shift+X)"
+    if [ -d "$ext/$e" ]; then
+        ok "Extension $e installed"
+    else
+        todo "Install the \"$e\" extension in Zed (Ctrl+Shift+X)"
+    fi
 done
 if grep -q "\"$mode\": *\"$name\"" "$settings" 2>/dev/null; then
     ok "Editor theme: $name"

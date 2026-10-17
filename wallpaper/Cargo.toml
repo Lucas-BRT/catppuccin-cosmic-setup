@@ -1,0 +1,22 @@
+[package]
+name = "catppuccin-wallpaper"
+version = "0.1.0"
+edition = "2024"
+description = "Procedural Catppuccin wallpapers for any flavor and accent"
+license = "MIT"
+repository = "https://github.com/Lucas-BRT/catppuccin-cosmic-setup"
+publish = false
+
+[[bin]]
+name = "ctp-wallpaper"
+path = "src/main.rs"
+
+[dependencies]
+catppuccin = "2.8.0"
+png = "0.18.1"
+rayon = "1.12.0"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

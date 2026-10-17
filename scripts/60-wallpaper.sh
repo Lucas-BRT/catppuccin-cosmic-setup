@@ -4,8 +4,8 @@
 #
 # One style (default): puts catppuccin-<flavor>-<accent>[-<style>].png in
 # ~/Pictures/Wallpapers/ and sets it as the background for every display.
-# The Mocha Mauve glow image ships with the repo; anything else is rendered
-# with wallpaper/generate.py (pure Python, about 10-20 seconds).
+# Images are rendered by ctp-wallpaper (wallpaper/, Rust; well under a
+# second each), downloaded prebuilt and hash-checked, or built with cargo.
 #
 # WALLPAPER_STYLE=all: renders every style into
 # ~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>/ and adds that folder to
@@ -16,6 +16,7 @@
 # that folder as the background in slideshow mode, changing image at that
 # interval.
 # =============================================================================
+# shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
 settings="$COSMIC_DIR/com.system76.CosmicSettings.Wallpaper/v1"
@@ -27,19 +28,6 @@ set_background() {
     strip_ron_comments "$REPO_DIR/config/cosmic/background-all.ron" |
         sed -e "s#@SOURCE@#$source#" -e "s#@ROTATION@#$rotation#" \
         > "$COSMIC_DIR/com.system76.CosmicBackground/v1/all"
-}
-
-# Render one style to a file, reusing the pre-rendered image when the repo
-# ships it.
-render() {
-    local style=$1 out=$2 shipped
-    shipped="$REPO_DIR/wallpaper/catppuccin-$FLAVOR-$ACCENT.png"
-    if [ "$style" = glow ] && [ -f "$shipped" ]; then
-        cp "$shipped" "$out"
-    else
-        python3 -I "$REPO_DIR/wallpaper/generate.py" "$out" \
-            --style "$style" --flavor "$FLAVOR" --accent "$ACCENT"
-    fi
 }
 
 # Add the folder to the wallpaper picker the way COSMIC Settings does:
@@ -67,24 +55,19 @@ with open(os.path.join(settings, "current-folder"), "w") as f:
 PY
 }
 
+wallpaper_bin
+
 if [ "$WALLPAPER_STYLE" != all ]; then
     info "Wallpaper ($FLAVOR, $ACCENT accent, $WALLPAPER_STYLE)"
     mkdir -p "$(dirname "$WALLPAPER")"
-    render "$WALLPAPER_STYLE" "$WALLPAPER"
+    "$WALLPAPER_BIN" "$WALLPAPER" --style "$WALLPAPER_STYLE" --flavor "$FLAVOR" --accent "$ACCENT"
     set_background "$WALLPAPER"
     ok "Background: $WALLPAPER"
     exit 0
 fi
 
 info "Wallpapers: every style ($FLAVOR, $ACCENT accent)"
-mkdir -p "$WALLPAPER_DIR"
-# Render the styles in parallel; each one is a separate single-core process.
-pids=()
-for style in $WALLPAPER_STYLES; do
-    render "$style" "$WALLPAPER_DIR/catppuccin-$FLAVOR-$ACCENT-$style.png" &
-    pids+=($!)
-done
-for pid in "${pids[@]}"; do wait "$pid"; done
+"$WALLPAPER_BIN" --all "$WALLPAPER_DIR" --flavor "$FLAVOR" --accent "$ACCENT"
 ok "$(wc -w <<<"$WALLPAPER_STYLES") wallpapers in $WALLPAPER_DIR"
 
 register_folder "$WALLPAPER_DIR"

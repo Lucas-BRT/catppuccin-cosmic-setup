@@ -19,6 +19,8 @@
 #   WALLPAPER_ROTATE=30m         # with all: slideshow of that folder (5m ... 2h)
 #   NO_APPLY=1                   # only generate the theme, don't apply it
 #   NO_BACKUP=1                  # skip the backup
+#   BUILD_FROM_SOURCE=1          # build the wallpaper generator with cargo
+#                                # instead of downloading the prebuilt binary
 #
 # Safe to run any number of times: each step overwrites only what it
 # installed itself and never duplicates anything.
