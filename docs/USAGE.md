@@ -6,8 +6,16 @@
 
 The [install command](../README.md#install) downloads the latest release
 into `~/.local/share/catppuccin-cosmic-setup/current/` and runs
-`install.sh` from there. Options are environment variables, and steps can
-be run on their own, either through the install command or directly:
+`install.sh` from there.
+
+In a terminal, with no options, it opens an interactive setup: pick the
+flavor, accent, Frosted Glass, wallpaper and steps with a live preview,
+press **Enter** to install, and follow each step as it runs. Keys:
+**↑↓** move, **←→** or **space** change, **enter** install, **q** quit.
+
+Passing any option or step skips the interface and runs directly, which is
+also what happens without a terminal (`NO_TUI=1` forces it). Options are
+environment variables, and steps can be run on their own:
 
 ```bash
 curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/get.sh | bash -s -- icons wallpaper
@@ -34,7 +42,8 @@ release, or built with `cargo`.
 | `WALLPAPER_ROTATE` | | slideshow interval for `WALLPAPER_STYLE=all`: `5m` `10m` `15m` `30m` `1h` `2h` |
 | `NO_APPLY` | `0` | `1` generates the desktop theme without applying it |
 | `NO_BACKUP` | `0` | `1` skips the backup |
-| `BUILD_FROM_SOURCE` | `0` | `1` builds the wallpaper generator with `cargo` instead of downloading it |
+| `BUILD_FROM_SOURCE` | `0` | `1` builds `ctp-cosmic` with `cargo` instead of downloading it |
+| `NO_TUI` | `0` | `1` never opens the interactive setup |
 
 Invalid values stop the installer before anything is changed. Latte is the
 only light flavor: it switches COSMIC to light mode and uses the light

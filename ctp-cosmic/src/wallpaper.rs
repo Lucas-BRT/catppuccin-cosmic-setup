@@ -131,7 +131,12 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Option<Args>, St
     Ok(Some(a))
 }
 
-fn render_one(style: &str, flavor: &str, accent: &str, (w, h): (usize, usize)) -> Vec<u8> {
+pub(crate) fn render_one(
+    style: &str,
+    flavor: &str,
+    accent: &str,
+    (w, h): (usize, usize),
+) -> Vec<u8> {
     let p = Palette::new(flavor).expect("validated flavor");
     let pixel = styles::build(style, p, accent, w, h).expect("validated style");
     image::render(w, h, &pixel)

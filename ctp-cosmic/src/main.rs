@@ -10,6 +10,7 @@ mod noise;
 mod palette;
 mod styles;
 mod theme;
+mod tui;
 mod wallpaper;
 
 use std::process::ExitCode;
@@ -22,6 +23,7 @@ Usage:
   ctp-cosmic theme ...                       desktop themes (COSMIC 1.10)
   ctp-cosmic wallpaper ...                   procedural wallpapers
   ctp-cosmic register-wallpaper-folder ...   add a folder to COSMIC's wallpaper picker
+  ctp-cosmic tui --repo DIR                  interactive setup (install.sh opens it)
   ctp-cosmic --version
 
 Run `ctp-cosmic <command> --help` for each command's options.
@@ -36,6 +38,7 @@ fn main() -> ExitCode {
         "theme" => theme::main(rest).map(|()| 0),
         "wallpaper" => wallpaper::main(rest).map(|()| 0),
         "register-wallpaper-folder" => folders::main(rest).map(|()| 0),
+        "tui" => tui::main(rest),
         "-V" | "--version" => {
             println!("ctp-cosmic {}", env!("CARGO_PKG_VERSION"));
             Ok(0)

@@ -18,7 +18,8 @@ One-command [Catppuccin](https://catppuccin.com) setup for Pop!_OS 24.04
 curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/get.sh | bash
 ```
 
-That installs Mocha with the Mauve accent. For another combination:
+In a terminal this opens an interactive setup with a live preview. To
+install directly instead, pass the options:
 
 ```bash
 curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/get.sh | FLAVOR=latte ACCENT=blue bash

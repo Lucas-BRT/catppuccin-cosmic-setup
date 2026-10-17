@@ -4,9 +4,12 @@
 # Pop!_OS 24.04 with the COSMIC desktop.
 #
 # Usage:
-#   ./install.sh                 # every step (backs up first)
-#   ./install.sh icons wallpaper # only the listed steps
+#   ./install.sh                 # in a terminal: interactive setup (ctp-cosmic tui)
+#   ./install.sh icons wallpaper # only the listed steps, no questions
 #   ./install.sh --list          # list the steps
+#
+# Without a terminal, or with any step or option below, everything runs
+# directly (every step by default), so scripted installs need no input.
 #
 # Optional variables:
 #   FLAVOR=mocha   ACCENT=mauve  # e.g. FLAVOR=latte ACCENT=lavender ./install.sh
@@ -19,14 +22,33 @@
 #   WALLPAPER_ROTATE=30m         # with all: slideshow of that folder (5m ... 2h)
 #   NO_APPLY=1                   # only generate the theme, don't apply it
 #   NO_BACKUP=1                  # skip the backup
-#   BUILD_FROM_SOURCE=1          # build the wallpaper generator with cargo
-#                                # instead of downloading the prebuilt binary
+#   BUILD_FROM_SOURCE=1          # build ctp-cosmic with cargo instead of
+#                                # downloading the prebuilt binary
+#   NO_TUI=1                     # never open the interactive setup
 #
 # Safe to run any number of times: each step overwrites only what it
 # installed itself and never duplicates anything.
 # =============================================================================
 set -euo pipefail
 cd "$(dirname "$0")/scripts"
+
+# Interactive setup: only with no steps and no options, when there is a
+# terminal to draw on (stdout) and to read keys from (/dev/tty, which also
+# works under `curl ... | bash`).
+interactive() {
+    [ $# -eq 0 ] && [ "${NO_TUI:-0}" != 1 ] && [ -t 1 ] || return 1
+    { : </dev/tty; } 2>/dev/null || return 1
+    local v
+    for v in FLAVOR ACCENT FROSTED FROST_ON ALPHA_OFFSET WALLPAPER_STYLE \
+             WALLPAPER_ROTATE NO_APPLY NO_BACKUP; do
+        [ -z "${!v:-}" ] || return 1
+    done
+}
+if interactive "$@"; then
+    # shellcheck source=scripts/lib.sh
+    source ./lib.sh   # finds (or builds) ctp-cosmic
+    exec "$CTP_BIN" tui --repo "$REPO_DIR"
+fi
 
 declare -A STEPS=(
     [cosmic]=10-cosmic-theme.sh
