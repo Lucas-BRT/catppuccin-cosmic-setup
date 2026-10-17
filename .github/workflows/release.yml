@@ -1,9 +1,12 @@
 name: Release ctp-wallpaper
 
-# Push a tag like wallpaper-v0.1.0 (matching wallpaper/Cargo.toml) to build
-# static Linux binaries and publish them with a SHA256SUMS file. Afterwards,
-# run scripts/dev/pin-wallpaper-release.sh <tag> and commit the result so the
-# installer uses (and verifies) the new binaries.
+# To release a new ctp-wallpaper:
+#   1. bump the version in wallpaper/Cargo.toml and commit
+#   2. git tag wallpaper-vX.Y.Z && git push origin wallpaper-vX.Y.Z
+#      (this workflow builds static x86_64/aarch64 binaries and publishes
+#      them with a SHA256SUMS file)
+#   3. scripts/dev/pin-wallpaper-release.sh wallpaper-vX.Y.Z, then commit
+#      and push; until then the installer keeps the previously pinned release
 
 on:
   push:

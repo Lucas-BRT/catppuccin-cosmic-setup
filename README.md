@@ -26,6 +26,8 @@ FLAVOR=latte ACCENT=blue ./install.sh   # or any other combination
 Your settings are backed up first, and `./uninstall.sh` restores them.
 The only manual step left is importing the [terminal colors](docs/USAGE.md#terminal).
 
+Options, wallpaper styles and uninstalling are covered in [docs/USAGE.md](docs/USAGE.md).
+
 ## What it sets up
 
 - **Desktop theme** in the COSMIC 1.10 format, keeping Frosted Glass on
@@ -34,11 +36,6 @@ The only manual step left is importing the [terminal colors](docs/USAGE.md#termi
 - **Papirus icons** with Catppuccin folders
 - **Wallpapers** in 10 styles, also available in COSMIC's wallpaper picker
 - **Zed** check, telling you what to set
-
-## Docs
-
-- [Usage](docs/USAGE.md): options, steps, wallpapers, uninstalling
-- [Development](docs/DEVELOPMENT.md): layout, CI, releases, COSMIC 1.10 notes
 
 ## Credits
 
