@@ -208,3 +208,15 @@ themes/generate.py             COSMIC 1.10 theme generator (with Frosted Glass)
 themes/cosmic-settings/        ready-made Mocha themes, solid and frosted
 wallpaper/                     wallpaper generator and image
 ```
+
+## Credits
+
+- Palette and color mapping: [Catppuccin](https://github.com/catppuccin/catppuccin)
+  and [catppuccin/cosmic-desktop](https://github.com/catppuccin/cosmic-desktop) (MIT).
+- Icons: [Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme) (GPL-3.0)
+  and [catppuccin/papirus-folders](https://github.com/catppuccin/papirus-folders) (MIT),
+  downloaded at install time, not bundled here.
+
+## License
+
+[MIT](LICENSE)
