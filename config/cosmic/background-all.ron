@@ -1,12 +1,13 @@
 // Wallpaper for every display.
 // Target: ~/.config/cosmic/com.system76.CosmicBackground/v1/all
-// The installer replaces @WALLPAPER@ with the image's absolute path.
+// The installer replaces @SOURCE@ with an image path, or with a folder path
+// for a slideshow, and @ROTATION@ with the slideshow interval in seconds.
 (
     output: "all",                  // applies to every monitor
-    source: Path("@WALLPAPER@"),    // image made by wallpaper/generate.py
+    source: Path("@SOURCE@"),       // an image, or a folder for a slideshow
     filter_by_theme: true,          // COSMIC default
-    rotation_frequency: 3600,       // only matters when the source is a folder
+    rotation_frequency: @ROTATION@, // seconds between images (folders only)
     filter_method: Lanczos,         // best quality when resizing
     scaling_mode: Zoom,             // fill the screen without distortion
-    sampling_method: Alphanumeric,
+    sampling_method: Alphanumeric,  // slideshow order: by file name
 )

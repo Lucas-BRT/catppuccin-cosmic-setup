@@ -13,7 +13,9 @@
 #   FROSTED=auto|off|medium|...  # Frosted Glass (default: keep the current setting)
 #   FROST_ON=windows,panel,...   # where Frosted Glass applies
 #   ALPHA_OFFSET=0.1             # more opaque (negative = more transparent)
-#   WALLPAPER_STYLE=waves        # glow (default), waves, stripes, dots, triangles
+#   WALLPAPER_STYLE=waves        # glow (default), waves, stripes, dots, triangles,
+#                                # or all: every style in a folder for the COSMIC picker
+#   WALLPAPER_ROTATE=30m         # with all: slideshow of that folder (5m ... 2h)
 #   NO_APPLY=1                   # only generate the theme, don't apply it
 #   NO_BACKUP=1                  # skip the backup
 #

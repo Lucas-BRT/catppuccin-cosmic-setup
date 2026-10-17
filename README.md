@@ -39,6 +39,8 @@ FROSTED=high ./install.sh cosmic             # stronger Frosted Glass
 FROSTED=off ./install.sh cosmic              # no transparency
 FROST_ON=panel,applets ./install.sh cosmic   # only on the panel and applets
 WALLPAPER_STYLE=waves ./install.sh wallpaper # another wallpaper style
+WALLPAPER_STYLE=all ./install.sh wallpaper   # every style, ready in Settings → Wallpaper
+WALLPAPER_STYLE=all WALLPAPER_ROTATE=30m ./install.sh wallpaper   # ...as a slideshow
 ```
 
 | Variable       | Default | Effect                                         |
@@ -48,7 +50,8 @@ WALLPAPER_STYLE=waves ./install.sh wallpaper # another wallpaper style
 | `FROSTED`      | `auto`  | `auto` keeps the current Frosted Glass setting, `off` disables it, or a strength: `extremely_low`, `extremely_low_2`, `very_low`, `very_low_2`, `low`, `low_2`, `medium`, `medium_2`, `high`, `high_2`, `very_high`, `very_high_2`, `extremely_high`, `extremely_high_2` |
 | `FROST_ON`     | all but `maximized_apps` | Where Frosted Glass applies: `windows`, `system_interface`, `panel`, `applets`, `maximized_apps` |
 | `ALPHA_OFFSET` | `0`     | Added to the Frosted Glass opacity (`0.1` = more opaque, `-0.1` = more transparent) |
-| `WALLPAPER_STYLE` | `glow` | Wallpaper style: `glow`, `waves`, `stripes`, `dots`, `triangles` (see [Wallpaper](#wallpaper)) |
+| `WALLPAPER_STYLE` | `glow` | Wallpaper style: `glow`, `waves`, `stripes`, `dots`, `triangles`, or `all` to put every style in a folder for COSMIC's wallpaper picker (see [Wallpaper](#wallpaper)) |
+| `WALLPAPER_ROTATE` | — | With `WALLPAPER_STYLE=all`: also make that folder the background as a slideshow, every `5m`, `10m`, `15m`, `30m`, `1h` or `2h` |
 | `NO_APPLY`     | `0`     | `1` only generates the theme, without applying it |
 | `NO_BACKUP`    | `0`     | `1` skips the backup                           |
 
@@ -185,6 +188,37 @@ and accent. Rows below are Latte, Frappé, Macchiato and Mocha; columns are
   for `glow`, `catppuccin-<flavor>-<accent>-<style>.png` for the others.
 - **Config:** [`config/cosmic/background-all.ron`](config/cosmic/background-all.ron)
   goes to `~/.config/cosmic/com.system76.CosmicBackground/v1/all`.
+
+#### Every style at once, for COSMIC's wallpaper picker
+
+```bash
+WALLPAPER_STYLE=all ./install.sh wallpaper
+```
+
+Renders all five styles (in parallel, about 20 seconds) into
+`~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>/` and adds that folder
+to **Settings → Desktop → Wallpaper**, already selected. The current
+background is left alone: pick an image there, or turn on the slideshow and
+choose its interval in the same page.
+
+To have the installer switch the system to the slideshow as well, add
+`WALLPAPER_ROTATE`:
+
+```bash
+WALLPAPER_STYLE=all WALLPAPER_ROTATE=30m ./install.sh wallpaper
+```
+
+Only the intervals offered by the Settings page are accepted (`5m`, `10m`,
+`15m`, `30m`, `1h`, `2h`), so the page shows the same value afterwards.
+
+What gets written, mirroring what COSMIC Settings itself does:
+
+| Key | Value |
+| --- | --- |
+| `com.system76.CosmicSettings.Wallpaper/v1/recent-folders` | the folder is appended; the list keeps at most 5 entries, oldest dropped first |
+| `com.system76.CosmicSettings.Wallpaper/v1/current-folder` | `Some("<folder>")`, the folder the picker opens on |
+| `com.system76.CosmicSettings.Wallpaper/v1/rotation-frequency` | with `WALLPAPER_ROTATE` only: the interval in seconds |
+| `com.system76.CosmicBackground/v1/all` | with `WALLPAPER_ROTATE` only: `source: Path("<folder>")` and `rotation_frequency` |
 
 To render any combination or resolution by hand:
 

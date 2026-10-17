@@ -20,16 +20,36 @@ ACCENT="${ACCENT:-mauve}"
 ctp() { python3 -I "$REPO_DIR/lib/catppuccin.py" "$@"; }
 ctp check "$FLAVOR" "$ACCENT"
 
-# Wallpaper style (see `wallpaper/generate.py --list-styles`). The default
-# "glow" keeps the plain catppuccin-<flavor>-<accent>.png name.
+# Wallpaper style (see `wallpaper/generate.py --list-styles`), or "all" to
+# render every style into a folder for COSMIC's wallpaper picker. The
+# default "glow" keeps the plain catppuccin-<flavor>-<accent>.png name.
 WALLPAPER_STYLE="${WALLPAPER_STYLE:-glow}"
-if ! python3 -I "$REPO_DIR/wallpaper/generate.py" --list-styles | grep -qx "$WALLPAPER_STYLE"; then
-    echo "unknown wallpaper style '$WALLPAPER_STYLE' (choose: $(python3 -I "$REPO_DIR/wallpaper/generate.py" --list-styles | paste -sd, | sed 's/,/, /g'))" >&2
+WALLPAPER_STYLES=$(python3 -I "$REPO_DIR/wallpaper/generate.py" --list-styles)
+if [ "$WALLPAPER_STYLE" != all ] && ! grep -qx "$WALLPAPER_STYLE" <<<"$WALLPAPER_STYLES"; then
+    echo "unknown wallpaper style '$WALLPAPER_STYLE' (choose: $(paste -sd, <<<"$WALLPAPER_STYLES" | sed 's/,/, /g'), all)" >&2
     exit 1
 fi
 suffix=""; [ "$WALLPAPER_STYLE" = glow ] || suffix="-$WALLPAPER_STYLE"
 WALLPAPER="$HOME/Pictures/Wallpapers/catppuccin-$FLAVOR-$ACCENT$suffix.png"
+WALLPAPER_DIR="$HOME/Pictures/Wallpapers/catppuccin-$FLAVOR-$ACCENT"   # used by "all"
 unset suffix
+
+# Slideshow interval for WALLPAPER_STYLE=all. Only the intervals offered by
+# COSMIC Settings → Wallpaper are accepted, so the UI shows the same value.
+WALLPAPER_ROTATE="${WALLPAPER_ROTATE:-}"
+ROTATE_SECONDS=""
+if [ -n "$WALLPAPER_ROTATE" ]; then
+    case "$WALLPAPER_ROTATE" in
+        5m|300) ROTATE_SECONDS=300 ;;     10m|600) ROTATE_SECONDS=600 ;;
+        15m|900) ROTATE_SECONDS=900 ;;    30m|1800) ROTATE_SECONDS=1800 ;;
+        1h|3600) ROTATE_SECONDS=3600 ;;   2h|7200) ROTATE_SECONDS=7200 ;;
+        *) echo "invalid WALLPAPER_ROTATE '$WALLPAPER_ROTATE' (choose: 5m, 10m, 15m, 30m, 1h, 2h)" >&2; exit 1 ;;
+    esac
+    if [ "$WALLPAPER_STYLE" != all ]; then
+        echo "WALLPAPER_ROTATE needs WALLPAPER_STYLE=all (a slideshow needs several images)" >&2
+        exit 1
+    fi
+fi
 # Papirus has a dark and a light variant; Latte is the only light flavor.
 if ctp is-dark "$FLAVOR"; then ICON_THEME=Papirus-Dark; else ICON_THEME=Papirus; fi
 
