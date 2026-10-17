@@ -1,0 +1,12 @@
+// Papel de parede de todas as telas.
+// Destino: ~/.config/cosmic/com.system76.CosmicBackground/v1/all
+// O instalador troca @WALLPAPER@ pelo caminho absoluto da imagem.
+(
+    output: "all",                  // vale para todos os monitores
+    source: Path("@WALLPAPER@"),    // imagem gerada por wallpaper/generate.py
+    filter_by_theme: true,          // padrão do COSMIC
+    rotation_frequency: 3600,       // só importa se a fonte for uma pasta
+    filter_method: Lanczos,         // melhor qualidade ao redimensionar
+    scaling_mode: Zoom,             // preenche a tela sem distorcer
+    sampling_method: Alphanumeric,
+)
