@@ -1,338 +1,53 @@
 # catppuccin-cosmic-setup
 
-Scripts and configs that theme Pop!_OS 24.04 (COSMIC desktop) with
-[Catppuccin](https://catppuccin.com): any of the 4 flavors (Latte, Frappé,
-Macchiato, Mocha) and 14 accents. The default is **Mocha** with the
-**Mauve** accent.
+[![CI](https://img.shields.io/github/actions/workflow/status/Lucas-BRT/catppuccin-cosmic-setup/ci.yml?branch=main&style=for-the-badge&label=CI&labelColor=363a4f)](https://github.com/Lucas-BRT/catppuccin-cosmic-setup/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Lucas-BRT/catppuccin-cosmic-setup?style=for-the-badge&label=ctp-wallpaper&labelColor=363a4f&color=c6a0f6)](https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases)
+[![License](https://img.shields.io/github/license/Lucas-BRT/catppuccin-cosmic-setup?style=for-the-badge&labelColor=363a4f&color=a6da95)](LICENSE)
+[![COSMIC](https://img.shields.io/badge/COSMIC-1.10-8aadf4?style=for-the-badge&labelColor=363a4f)](https://system76.com/cosmic)
+[![Rust](https://img.shields.io/badge/Rust-f5a97f?style=for-the-badge&logo=rust&logoColor=24273a)](wallpaper)
+[![Bash](https://img.shields.io/badge/Bash-a6da95?style=for-the-badge&logo=gnubash&logoColor=24273a)](scripts)
+[![Python](https://img.shields.io/badge/Python-eed49f?style=for-the-badge&logo=python&logoColor=24273a)](themes)
 
-> This is a community installer, not an official Catppuccin port. The
-> official COSMIC port lives at
-> [catppuccin/cosmic-desktop](https://github.com/catppuccin/cosmic-desktop).
-
-The desktop theme is generated here in the **COSMIC 1.10** format, with
-**Frosted Glass** support (see [The COSMIC 1.10 format](#the-cosmic-110-format)).
-Everything else comes from the official repositories, pinned to exact
-commits, so running the installer today or a year from now gives the same
-result.
-
-## Quick start
-
-```bash
-git clone <this-repo> ~/Projects/catppuccin-cosmic-setup
-cd ~/Projects/catppuccin-cosmic-setup
-./install.sh                              # Mocha Mauve
-FLAVOR=latte ACCENT=blue ./install.sh     # any other combination
-```
-
-The installer backs everything up before changing anything, and it can be
-run again without duplicating anything. Afterwards, the only manual step
-is importing the terminal color scheme (see [COSMIC Terminal](#cosmic-terminal)).
-
-To run only some steps or change options:
-
-```bash
-./install.sh --list            # list the steps
-./install.sh icons wallpaper   # run only these
-FLAVOR=frappe ./install.sh     # another flavor (latte, frappe, macchiato, mocha)
-ACCENT=lavender ./install.sh   # another accent (blue, pink, peach, teal...)
-FROSTED=high ./install.sh cosmic             # stronger Frosted Glass
-FROSTED=off ./install.sh cosmic              # no transparency
-FROST_ON=panel,applets ./install.sh cosmic   # only on the panel and applets
-WALLPAPER_STYLE=waves ./install.sh wallpaper # another wallpaper style
-WALLPAPER_STYLE=all ./install.sh wallpaper   # every style, ready in Settings → Wallpaper
-WALLPAPER_STYLE=all WALLPAPER_ROTATE=30m ./install.sh wallpaper   # ...as a slideshow
-```
-
-| Variable       | Default | Effect                                         |
-| -------------- | ------- | ---------------------------------------------- |
-| `FLAVOR`       | `mocha` | Catppuccin flavor (`latte`, `frappe`, `macchiato`, `mocha`) |
-| `ACCENT`       | `mauve` | Accent color: `rosewater`, `flamingo`, `pink`, `mauve`, `red`, `maroon`, `peach`, `yellow`, `green`, `teal`, `sky`, `sapphire`, `blue`, `lavender` |
-| `FROSTED`      | `auto`  | `auto` keeps the current Frosted Glass setting, `off` disables it, or a strength: `extremely_low`, `extremely_low_2`, `very_low`, `very_low_2`, `low`, `low_2`, `medium`, `medium_2`, `high`, `high_2`, `very_high`, `very_high_2`, `extremely_high`, `extremely_high_2` |
-| `FROST_ON`     | all but `maximized_apps` | Where Frosted Glass applies: `windows`, `system_interface`, `panel`, `applets`, `maximized_apps` |
-| `ALPHA_OFFSET` | `0`     | Added to the Frosted Glass opacity (`0.1` = more opaque, `-0.1` = more transparent) |
-| `WALLPAPER_STYLE` | `glow` | Wallpaper style: `glow`, `waves`, `stripes`, `dots`, `triangles`, `mesh`, `aurora`, `sunset`, `topography`, `mountains`, or `all` to put every style in a folder for COSMIC's wallpaper picker (see [Wallpaper](#wallpaper)) |
-| `WALLPAPER_ROTATE` | — | With `WALLPAPER_STYLE=all`: also make that folder the background as a slideshow, every `5m`, `10m`, `15m`, `30m`, `1h` or `2h` |
-| `NO_APPLY`     | `0`     | `1` only generates the theme, without applying it |
-| `NO_BACKUP`    | `0`     | `1` skips the backup                           |
-| `BUILD_FROM_SOURCE` | `0` | `1` builds the wallpaper generator with `cargo` instead of downloading the prebuilt binary |
-
-Every step follows `FLAVOR` and `ACCENT`: desktop theme, terminal scheme,
-prompt colors, folder color, wallpaper and the Zed theme name. Latte is the
-only light flavor, so it switches COSMIC to light mode and uses the light
-`Papirus` icons instead of `Papirus-Dark`. An unknown flavor or accent
-stops the installer before anything is changed.
-
-All colors come from one place, [`lib/catppuccin.py`](lib/catppuccin.py),
-which the generators import and the shell scripts call:
-
-```bash
-lib/catppuccin.py rgb frappe peach          # 239;159;118
-lib/catppuccin.py name frappe               # Frappé
-lib/catppuccin.py render latte blue < template > output   # fills @<color>@ placeholders
-```
-
-## What each step does
-
-| Step        | Script                        | Changes                                                    |
-| ----------- | ----------------------------- | ---------------------------------------------------------- |
-| *(backup)*  | `scripts/00-backup.sh`        | Copies `~/.config/cosmic`, `~/.bashrc` and Zed's `settings.json`, and exports the current theme as `previous-theme.ron` |
-| `cosmic`    | `scripts/10-cosmic-theme.sh`  | Generates the theme and applies it with `cosmic-settings appearance import` |
-| `terminal`  | `scripts/20-terminal.sh`      | Downloads the terminal scheme and checks whether it was imported |
-| `bash`      | `scripts/30-bash-prompt.sh`   | Renders the prompt in the flavor's colors to `~/.config/catppuccin/catppuccin-prompt.bash` and adds a block to `~/.bashrc` |
-| `zed`       | `scripts/40-zed.sh`           | Only checks the extensions and `settings.json`, changes nothing |
-| `icons`     | `scripts/50-icons.sh`         | Papirus in `~/.local/share/icons`, `cat-<flavor>-<accent>` folders |
-| `wallpaper` | `scripts/60-wallpaper.sh`     | Sets `~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>.png` as the background |
-
-### COSMIC desktop
-
-- **Generator:** [`themes/generate.py`](themes/generate.py). Colors, and
-  which Catppuccin color goes into each field, follow the official template
-  from [catppuccin/cosmic-desktop](https://github.com/catppuccin/cosmic-desktop).
-  All 42 colors match the official Mocha Mauve `.ron` field by field.
-- **Ready-made files:** [`themes/cosmic-settings/`](themes/cosmic-settings)
-  has Mocha in all 14 accents, solid (`+round.ron`) and with medium Frosted
-  Glass (`+round+frosted.ron`). The installer also generates Latte, Frappé
-  and Macchiato in `~/.local/share/catppuccin/themes/cosmic-settings/`.
-- **Applying by hand**, without the installer:
-
-  ```bash
-  cosmic-settings appearance import themes/cosmic-settings/catppuccin-mocha-mauve+round+frosted.ron
-  ```
-
-  The **Import** button under Settings → Desktop → Appearance works too.
-- **Custom theme:**
-
-  ```bash
-  themes/generate.py --accent lavender --frosted high --frost-on windows,panel \
-      --alpha-offset 0.05 --roundness slightlyround -o my-theme.ron
-  themes/generate.py --help    # every option
-  ```
-
-- **Where COSMIC stores it:** `~/.config/cosmic/com.system76.CosmicTheme.Dark.Builder/v2/`
-  (what you picked) and `com.system76.CosmicTheme.Dark/v2/` (the full theme
-  computed from it: button, container and border colors).
-
-### COSMIC Terminal
-
-- **Source:** [catppuccin/cosmic-desktop](https://github.com/catppuccin/cosmic-desktop),
-  `themes/cosmic-term/catppuccin-<flavor>.ron`. The format did not change in 1.10.
-- Text, cursor and the 16 ANSI colors of the chosen flavor.
-- It sets no background of its own: the terminal uses the desktop theme's
-  background, so it turns translucent with Frosted Glass too.
-- **Import (manual, the terminal has no command for it):** COSMIC Terminal →
-  View → Color schemes… → **Import** →
-  `~/.local/share/catppuccin/themes/cosmic-term/catppuccin-<flavor>.ron`
-
-### Bash prompt
-
-- **Template:** [`config/bash/catppuccin-prompt.bash.in`](config/bash/catppuccin-prompt.bash.in),
-  with every color commented. The installer fills in the flavor's colors
-  and writes `~/.config/catppuccin/catppuccin-prompt.bash`.
-- **Layout:** `user@host ~/path branch ❯`, in blue, overlay0, teal,
-  yellow, the accent and green.
-- Also sets `LS_COLORS` for directories, symlinks, executables and archives.
-- Only this block is added to `~/.bashrc`:
-
-  ```bash
-  # >>> catppuccin-cosmic-setup >>>
-  [ -f ~/.config/catppuccin/catppuccin-prompt.bash ] && . ~/.config/catppuccin/catppuccin-prompt.bash
-  # <<< catppuccin-cosmic-setup <<<
-  ```
-
-### Zed
-
-- **Extensions:** `catppuccin` (theme) and `catppuccin-icons` (icons),
-  installed from Zed itself (`Ctrl+Shift+X`).
-- **Snippet for `~/.config/zed/settings.json`** (Mocha shown; Latte goes
-  under `"light"`, and Frappé is spelled `"Catppuccin Frappé"`):
-
-  ```jsonc
-  "icon_theme": "Catppuccin Mocha",
-  "theme": { "mode": "system", "light": "One Light", "dark": "Catppuccin Mocha" }
-  ```
-
-- The script never rewrites the file, since it holds comments and your
-  other preferences. It only reports what is missing.
-
-### Icons
-
-- **Base:** [Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme),
-  copied to `~/.local/share/icons` (no `sudo`). Dark flavors use
-  `Papirus-Dark`, Latte uses the light `Papirus`.
-- **Folders:** [catppuccin/papirus-folders](https://github.com/catppuccin/papirus-folders),
-  recolored with the
-  [papirus-folders](https://github.com/PapirusDevelopmentTeam/papirus-folders)
-  script (`-C cat-<flavor>-<accent>`).
-- **Config:** `~/.config/cosmic/com.system76.CosmicTk/v1/icon_theme`.
-
-### Wallpaper
-
-Ten procedural styles, each drawn only with the chosen flavor's palette
-and accent. In the grid below, columns are Latte, Frappé, Macchiato and
-Mocha, and rows are the styles in the order of the table (all with the
-Mauve accent):
+[Catppuccin](https://catppuccin.com) for Pop!_OS 24.04 with the COSMIC
+desktop, in one command: desktop theme, terminal, bash prompt, icons and
+wallpapers, in any of the 4 flavors and 14 accents.
 
 ![Wallpaper styles in every flavor](wallpaper/previews.png)
 
-| Style       | Look                                                          |
-| ----------- | ------------------------------------------------------------- |
-| `glow`      | Crust→Base gradient with soft glows in the accent, Blue and Pink (default) |
-| `waves`     | Layered hills rising from the bottom, fading into the accent  |
-| `stripes`   | A diagonal ribbon in the lower right: the accent and its neighbor colors |
-| `dots`      | Halftone dots in the accent, growing toward the lower right   |
-| `triangles` | Low-poly triangles in surface tones, tinted by the accent toward the lower right |
-| `mesh`      | A soft mesh gradient blending the accent with two companion colors |
-| `aurora`    | Curtains of light in the accent and Teal over a night sky and dark hills |
-| `sunset`    | A retro sun cut by stripes over a perspective grid           |
-| `topography`| Contour lines like a topographic map; every fifth line bolder, warming to the accent |
-| `mountains` | Layered mountain ridges under a moon                         |
-
-- **Generator:** `ctp-wallpaper`, a small Rust program in [`wallpaper/`](wallpaper)
-  that renders rows in parallel. Colors come from the official
-  [`catppuccin`](https://crates.io/crates/catppuccin) crate. The same
-  options always produce the same image, in about 0.1 s at 2560×1440 (all
-  ten styles in about half a second).
-- **How the installer gets it:** it downloads the static binary for your
-  CPU (x86_64 or aarch64) from this repository's
-  [Releases](https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases)
-  and runs it only if its SHA-256 matches [`wallpaper/SHA256SUMS`](wallpaper/SHA256SUMS),
-  which is committed here. If there is no binary for your machine, or with
-  `BUILD_FROM_SOURCE=1`, it builds the generator with `cargo` instead.
-- **File name:** `~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>.png`
-  for `glow`, `catppuccin-<flavor>-<accent>-<style>.png` for the others.
-- **Config:** [`config/cosmic/background-all.ron`](config/cosmic/background-all.ron)
-  goes to `~/.config/cosmic/com.system76.CosmicBackground/v1/all`.
-
-#### Every style at once, for COSMIC's wallpaper picker
+## Install
 
 ```bash
-WALLPAPER_STYLE=all ./install.sh wallpaper
+git clone https://github.com/Lucas-BRT/catppuccin-cosmic-setup
+cd catppuccin-cosmic-setup
+./install.sh                            # Mocha with the Mauve accent
+FLAVOR=latte ACCENT=blue ./install.sh   # or any other combination
 ```
 
-Renders all ten styles (about half a second) into
-`~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>/` and adds that folder
-to **Settings → Desktop → Wallpaper**, already selected. The current
-background is left alone: pick an image there, or turn on the slideshow and
-choose its interval in the same page.
+Your settings are backed up first, and `./uninstall.sh` restores them.
+The only manual step left is importing the [terminal colors](docs/USAGE.md#terminal).
 
-To have the installer switch the system to the slideshow as well, add
-`WALLPAPER_ROTATE`:
+## What it sets up
 
-```bash
-WALLPAPER_STYLE=all WALLPAPER_ROTATE=30m ./install.sh wallpaper
-```
+- **Desktop theme** in the COSMIC 1.10 format, keeping Frosted Glass on
+- **COSMIC Terminal** color scheme
+- **Bash prompt** with git branch, in the flavor's colors
+- **Papirus icons** with Catppuccin folders
+- **Wallpapers** in 10 styles, also available in COSMIC's wallpaper picker
+- **Zed** check, telling you what to set
 
-Only the intervals offered by the Settings page are accepted (`5m`, `10m`,
-`15m`, `30m`, `1h`, `2h`), so the page shows the same value afterwards.
+## Docs
 
-What gets written, mirroring what COSMIC Settings itself does:
-
-| Key | Value |
-| --- | --- |
-| `com.system76.CosmicSettings.Wallpaper/v1/recent-folders` | the folder is appended; the list keeps at most 5 entries, oldest dropped first |
-| `com.system76.CosmicSettings.Wallpaper/v1/current-folder` | `Some("<folder>")`, the folder the picker opens on |
-| `com.system76.CosmicSettings.Wallpaper/v1/rotation-frequency` | with `WALLPAPER_ROTATE` only: the interval in seconds |
-| `com.system76.CosmicBackground/v1/all` | with `WALLPAPER_ROTATE` only: `source: Path("<folder>")` and `rotation_frequency` |
-
-To render any combination or resolution by hand (`cargo build --release`
-in `wallpaper/`, or use the binary the installer cached in
-`~/.cache/catppuccin-cosmic-setup/bin/`):
-
-```bash
-ctp-wallpaper out.png --style dots --flavor macchiato --accent teal --size 3840x2160
-ctp-wallpaper --all out-dir/ --flavor latte --accent blue   # every style
-ctp-wallpaper --describe-styles
-ctp-wallpaper --preview wallpaper/previews.png              # rebuild the grid above
-```
-
-## The COSMIC 1.10 format
-
-COSMIC 1.10 moved the theme to version 2 of its format (`ThemeBuilder` v2,
-stored under `.../v2/` instead of `.../v1/`). The official Catppuccin `.ron`
-files still use the old format. They import without errors, but:
-
-| Field                     | Old format (v1)     | COSMIC 1.10 (v2)                                |
-| ------------------------- | ------------------- | ----------------------------------------------- |
-| Transparency              | `is_frosted: bool`  | removed, silently ignored                       |
-| Blur strength             | —                   | `frosted: Medium` (14 levels, `ExtremelyLow` to `ExtremelyHigh2`) |
-| Where blur applies        | —                   | `frosted_windows`, `frosted_system_interface`, `frosted_panel`, `frosted_applets`, `frosted_maximized_apps` |
-| Opacity per strength      | —                   | `alpha_map: (extremely_low: 0.9, ..., extremely_high_2: 0.6)` |
-| Palette                   | had `blue`, `red`, `green`, `yellow`, `gray_3` | those fields are gone (ignored) |
-| Colors                    | `(red: 0.79, green: 0.65, blue: 0.96)` | `"#CBA6F7FF"` (the old form is still accepted) |
-
-**Consequence:** since the `frosted_*` fields are missing from the old
-file, they default to `false`. In other words, **importing the official
-`.ron` turns Frosted Glass off**. This repo's generator writes every new
-field, and with `FROSTED=auto` the installer also carries over the Frosted
-Glass setting you already had.
-
-How Frosted Glass works: the window background (Base `#1e1e2e`) gets the
-`alpha_map` opacity for the chosen strength (`medium` = 76%), and the
-compositor blurs whatever is behind it. The opacity slider under Appearance
-adds the same value to the whole `alpha_map`, just like `--alpha-offset`.
-
-All 112 generated themes were validated with libcosmic's own parser at the
-commit used by cosmic-settings 1.10 (`5a8bd94`), and Mocha Mauve was
-imported with `cosmic-settings appearance import`.
-
-## Uninstalling
-
-```bash
-./uninstall.sh                 # restore the last backup
-./uninstall.sh ~/.config/catppuccin-backup-YYYY-MM-DD-HHMMSS   # a specific backup
-PURGE=1 ./uninstall.sh         # also delete Papirus, themes and the wallpaper
-cosmic-settings appearance import ~/.config/catppuccin-backup-.../previous-theme.ron   # theme only
-```
-
-## Releasing the wallpaper generator
-
-[`.github/workflows/release.yml`](.github/workflows/release.yml) builds
-static (musl) binaries for x86_64 and aarch64 whenever a `wallpaper-v*` tag
-is pushed, and publishes them with a `SHA256SUMS` file. To release:
-
-```bash
-# 1. bump version in wallpaper/Cargo.toml, commit, then:
-git tag wallpaper-v0.2.0 && git push origin wallpaper-v0.2.0
-# 2. once the release workflow finishes, pin it and commit:
-scripts/dev/pin-wallpaper-release.sh wallpaper-v0.2.0
-git commit -am "Pin ctp-wallpaper 0.2.0" && git push
-```
-
-Until step 2 is committed the installer keeps using the previously pinned
-release, so a release can never reach users without its hashes being
-reviewed in a commit. [CI](.github/workflows/ci.yml) runs `rustfmt`,
-Clippy, the Rust tests, ShellCheck, and checks that the Rust palette,
-`lib/catppuccin.py` and the committed themes all agree.
-
-## Updating upstream versions
-
-The pinned commits live in [`scripts/lib.sh`](scripts/lib.sh)
-(`CTP_COSMIC_REV`, `PAPIRUS_REV`...). To update, change the hash and run
-the step again. Downloads are cached in `~/.cache/catppuccin-cosmic-setup/`.
-
-## Layout
-
-```
-install.sh / uninstall.sh      entry points
-lib/catppuccin.py              the palette, single source of colors
-scripts/lib.sh                 paths, pinned versions and shared functions
-scripts/NN-*.sh                one step per file, each runs on its own
-config/bash/                   bash prompt template
-config/cosmic/                 values written to cosmic-config
-themes/generate.py             COSMIC 1.10 theme generator (with Frosted Glass)
-themes/cosmic-settings/        ready-made Mocha themes, solid and frosted (others generated on install)
-wallpaper/                     ctp-wallpaper (Rust), README preview grid, pinned release hashes
-scripts/dev/                   maintainer helpers (pinning a release)
-.github/workflows/             CI and binary releases
-```
+- [Usage](docs/USAGE.md): options, steps, wallpapers, uninstalling
+- [Development](docs/DEVELOPMENT.md): layout, CI, releases, COSMIC 1.10 notes
 
 ## Credits
 
-- Palette and color mapping: [Catppuccin](https://github.com/catppuccin/catppuccin)
-  and [catppuccin/cosmic-desktop](https://github.com/catppuccin/cosmic-desktop) (MIT).
-- Icons: [Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme) (GPL-3.0)
-  and [catppuccin/papirus-folders](https://github.com/catppuccin/papirus-folders) (MIT),
-  downloaded at install time, not bundled here.
+This is a community project, not an official Catppuccin port; see
+[catppuccin/cosmic-desktop](https://github.com/catppuccin/cosmic-desktop)
+for that. Palette by [Catppuccin](https://github.com/catppuccin/catppuccin),
+icons by [Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme)
+and [catppuccin/papirus-folders](https://github.com/catppuccin/papirus-folders),
+downloaded at install time.
 
 ## License
 
