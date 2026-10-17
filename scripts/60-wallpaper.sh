@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
 # =============================================================================
 # 60 · Wallpaper
-# Puts catppuccin-<flavor>-<accent>.png in ~/Pictures/Wallpapers/: copied
-# from wallpaper/ when the repo ships it (Mocha Mauve), otherwise rendered
-# with wallpaper/generate.py (pure Python, takes a few seconds). Then
+# Puts the wallpaper in ~/Pictures/Wallpapers/: copied from wallpaper/ when
+# the repo ships it (Mocha Mauve, glow style), otherwise rendered with
+# wallpaper/generate.py (pure Python, about 10-20 seconds). The style comes
+# from WALLPAPER_STYLE: glow (default), waves, stripes, dots or triangles. Then
 # installs config/cosmic/background-all.ron as the background for every
 # display.
 # =============================================================================
 source "$(dirname "$0")/lib.sh"
 
-info "Wallpaper ($FLAVOR, $ACCENT accent)"
+info "Wallpaper ($FLAVOR, $ACCENT accent, $WALLPAPER_STYLE)"
 mkdir -p "$(dirname "$WALLPAPER")"
 src="$REPO_DIR/wallpaper/$(basename "$WALLPAPER")"
 if [ -f "$src" ]; then
     cp "$src" "$WALLPAPER"
 else
-    python3 -I "$REPO_DIR/wallpaper/generate.py" "$WALLPAPER" --flavor "$FLAVOR" --accent "$ACCENT"
+    python3 -I "$REPO_DIR/wallpaper/generate.py" "$WALLPAPER" \
+        --style "$WALLPAPER_STYLE" --flavor "$FLAVOR" --accent "$ACCENT"
 fi
 
 cosmic_set com.system76.CosmicBackground same-on-all true

@@ -20,7 +20,16 @@ ACCENT="${ACCENT:-mauve}"
 ctp() { python3 -I "$REPO_DIR/lib/catppuccin.py" "$@"; }
 ctp check "$FLAVOR" "$ACCENT"
 
-WALLPAPER="$HOME/Pictures/Wallpapers/catppuccin-$FLAVOR-$ACCENT.png"
+# Wallpaper style (see `wallpaper/generate.py --list-styles`). The default
+# "glow" keeps the plain catppuccin-<flavor>-<accent>.png name.
+WALLPAPER_STYLE="${WALLPAPER_STYLE:-glow}"
+if ! python3 -I "$REPO_DIR/wallpaper/generate.py" --list-styles | grep -qx "$WALLPAPER_STYLE"; then
+    echo "unknown wallpaper style '$WALLPAPER_STYLE' (choose: $(python3 -I "$REPO_DIR/wallpaper/generate.py" --list-styles | paste -sd, | sed 's/,/, /g'))" >&2
+    exit 1
+fi
+suffix=""; [ "$WALLPAPER_STYLE" = glow ] || suffix="-$WALLPAPER_STYLE"
+WALLPAPER="$HOME/Pictures/Wallpapers/catppuccin-$FLAVOR-$ACCENT$suffix.png"
+unset suffix
 # Papirus has a dark and a light variant; Latte is the only light flavor.
 if ctp is-dark "$FLAVOR"; then ICON_THEME=Papirus-Dark; else ICON_THEME=Papirus; fi
 

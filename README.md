@@ -38,6 +38,7 @@ ACCENT=lavender ./install.sh   # another accent (blue, pink, peach, teal...)
 FROSTED=high ./install.sh cosmic             # stronger Frosted Glass
 FROSTED=off ./install.sh cosmic              # no transparency
 FROST_ON=panel,applets ./install.sh cosmic   # only on the panel and applets
+WALLPAPER_STYLE=waves ./install.sh wallpaper # another wallpaper style
 ```
 
 | Variable       | Default | Effect                                         |
@@ -47,6 +48,7 @@ FROST_ON=panel,applets ./install.sh cosmic   # only on the panel and applets
 | `FROSTED`      | `auto`  | `auto` keeps the current Frosted Glass setting, `off` disables it, or a strength: `extremely_low`, `extremely_low_2`, `very_low`, `very_low_2`, `low`, `low_2`, `medium`, `medium_2`, `high`, `high_2`, `very_high`, `very_high_2`, `extremely_high`, `extremely_high_2` |
 | `FROST_ON`     | all but `maximized_apps` | Where Frosted Glass applies: `windows`, `system_interface`, `panel`, `applets`, `maximized_apps` |
 | `ALPHA_OFFSET` | `0`     | Added to the Frosted Glass opacity (`0.1` = more opaque, `-0.1` = more transparent) |
+| `WALLPAPER_STYLE` | `glow` | Wallpaper style: `glow`, `waves`, `stripes`, `dots`, `triangles` (see [Wallpaper](#wallpaper)) |
 | `NO_APPLY`     | `0`     | `1` only generates the theme, without applying it |
 | `NO_BACKUP`    | `0`     | `1` skips the backup                           |
 
@@ -161,19 +163,35 @@ lib/catppuccin.py render latte blue < template > output   # fills @<color>@ plac
 
 ### Wallpaper
 
+Five procedural styles, each drawn only with the chosen flavor's palette
+and accent. Rows below are Latte, Frappé, Macchiato and Mocha; columns are
+`glow`, `waves`, `stripes`, `dots` and `triangles` (all with the Mauve accent):
+
+![Wallpaper styles in every flavor](wallpaper/previews.png)
+
+| Style       | Look                                                          |
+| ----------- | ------------------------------------------------------------- |
+| `glow`      | Crust→Base gradient with soft glows in the accent, Blue and Pink (default) |
+| `waves`     | Layered hills rising from the bottom, fading into the accent  |
+| `stripes`   | A diagonal ribbon in the lower right: the accent and its neighbor colors |
+| `dots`      | Halftone dots in the accent, growing toward the lower right   |
+| `triangles` | Low-poly triangles in surface tones, tinted by the accent toward the lower right |
+
 - **Generator:** [`wallpaper/generate.py`](wallpaper/generate.py), Python
-  standard library only. Draws a Crust→Base gradient with glows in the
-  accent, Blue and Pink, and always produces the same image for the same
-  options.
-- **Pre-rendered image:** `wallpaper/catppuccin-mocha-mauve.png` (2560×1440).
-  Any other combination is rendered during install (about 10 seconds).
+  standard library only. The same options always produce the same image.
+- **Pre-rendered image:** `wallpaper/catppuccin-mocha-mauve.png` (2560×1440,
+  `glow`). Anything else is rendered during install (about 10-20 seconds).
+- **File name:** `~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>.png`
+  for `glow`, `catppuccin-<flavor>-<accent>-<style>.png` for the others.
 - **Config:** [`config/cosmic/background-all.ron`](config/cosmic/background-all.ron)
   goes to `~/.config/cosmic/com.system76.CosmicBackground/v1/all`.
 
-To render another combination or resolution:
+To render any combination or resolution by hand:
 
 ```bash
-python3 wallpaper/generate.py out.png --flavor macchiato --accent teal --size 3840x2160
+python3 wallpaper/generate.py out.png --style dots --flavor macchiato --accent teal --size 3840x2160
+python3 wallpaper/generate.py --list-styles
+python3 wallpaper/preview.py wallpaper/previews.png --accent mauve   # rebuild the grid above
 ```
 
 ## The COSMIC 1.10 format
@@ -232,7 +250,7 @@ config/bash/                   bash prompt template
 config/cosmic/                 values written to cosmic-config
 themes/generate.py             COSMIC 1.10 theme generator (with Frosted Glass)
 themes/cosmic-settings/        ready-made Mocha themes, solid and frosted (others generated on install)
-wallpaper/                     wallpaper generator and the default image
+wallpaper/                     wallpaper generator, preview grid and the default image
 ```
 
 ## Credits

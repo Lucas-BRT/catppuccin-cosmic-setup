@@ -13,6 +13,7 @@
 #   FROSTED=auto|off|medium|...  # Frosted Glass (default: keep the current setting)
 #   FROST_ON=windows,panel,...   # where Frosted Glass applies
 #   ALPHA_OFFSET=0.1             # more opaque (negative = more transparent)
+#   WALLPAPER_STYLE=waves        # glow (default), waves, stripes, dots, triangles
 #   NO_APPLY=1                   # only generate the theme, don't apply it
 #   NO_BACKUP=1                  # skip the backup
 #
