@@ -3,8 +3,10 @@
 Scripts e configs para deixar o Pop!_OS 24.04 (desktop COSMIC) no tema
 [Catppuccin](https://catppuccin.com) **Mocha**, com acento **Mauve**.
 
-Todos os temas vêm dos repositórios oficiais, fixados em commits exatos.
-Assim, rodar o instalador hoje ou daqui a um ano dá o mesmo resultado.
+O tema do desktop é gerado aqui, no formato do **COSMIC 1.10**, com
+suporte a **Frosted Glass** (veja [Formato do COSMIC 1.10](#formato-do-cosmic-110)).
+O resto vem dos repositórios oficiais, fixados em commits exatos. Assim,
+rodar o instalador hoje ou daqui a um ano dá o mesmo resultado.
 
 ## Uso rápido
 
@@ -15,8 +17,8 @@ cd ~/Projects/catppuccin-mocha-cosmic
 ```
 
 Antes de mudar qualquer coisa, o instalador faz um backup. Ele pode ser
-rodado de novo sem duplicar nada. Depois dele, faltam **duas importações
-manuais**, explicadas em [Por que dois passos são manuais](#por-que-dois-passos-são-manuais).
+rodado de novo sem duplicar nada. Depois dele, só falta importar o
+esquema do terminal pela interface (veja [COSMIC Terminal](#cosmic-terminal)).
 
 Para rodar só alguns passos:
 
@@ -24,13 +26,19 @@ Para rodar só alguns passos:
 ./install.sh --list            # lista os passos
 ./install.sh icons wallpaper   # roda só esses
 ACCENT=lavender ./install.sh   # outro acento (blue, pink, peach, teal...)
+FROSTED=high ./install.sh cosmic             # Frosted Glass mais forte
+FROSTED=off ./install.sh cosmic              # sem transparência
+FROST_ON=panel,applets ./install.sh cosmic   # só no painel e nos applets
 ```
 
 | Variável    | Padrão  | Efeito                                         |
 | ----------- | ------- | ---------------------------------------------- |
 | `FLAVOR`    | `mocha` | Sabor do Catppuccin (`latte`, `frappe`, `macchiato`, `mocha`) |
 | `ACCENT`    | `mauve` | Cor de destaque do desktop e das pastas        |
-| `NO_GUI`    | `0`     | `1` não abre as Configurações no passo `cosmic` |
+| `FROSTED`   | `auto`  | `auto` mantém o Frosted Glass como está, `off` desliga, ou uma intensidade: `extremely_low`, `extremely_low_2`, `very_low`, `very_low_2`, `low`, `low_2`, `medium`, `medium_2`, `high`, `high_2`, `very_high`, `very_high_2`, `extremely_high`, `extremely_high_2` |
+| `FROST_ON`  | tudo menos `maximized_apps` | Onde o Frosted Glass vale: `windows`, `system_interface`, `panel`, `applets`, `maximized_apps` |
+| `ALPHA_OFFSET` | `0`  | Soma à opacidade do Frosted Glass (`0.1` = mais opaco, `-0.1` = mais transparente) |
+| `NO_APPLY`  | `0`     | `1` só gera o tema, sem aplicar                |
 | `NO_BACKUP` | `0`     | `1` pula o backup                              |
 
 O prompt do bash e o papel de parede usam cores fixas da paleta Mocha e não
@@ -40,9 +48,9 @@ mudam com `FLAVOR` nem com `ACCENT`.
 
 | Passo       | Script                        | Muda                                                       |
 | ----------- | ----------------------------- | ---------------------------------------------------------- |
-| *(backup)*  | `scripts/00-backup.sh`        | Copia `~/.config/cosmic`, `~/.bashrc` e o `settings.json` do Zed |
-| `cosmic`    | `scripts/10-cosmic-theme.sh`  | Baixa os temas para `~/.local/share/catppuccin/themes`, liga o modo escuro e abre Aparência |
-| `terminal`  | `scripts/20-terminal.sh`      | Confere se o esquema do COSMIC Terminal foi importado      |
+| *(backup)*  | `scripts/00-backup.sh`        | Copia `~/.config/cosmic`, `~/.bashrc` e o `settings.json` do Zed, e exporta o tema atual como `tema-anterior.ron` |
+| `cosmic`    | `scripts/10-cosmic-theme.sh`  | Gera o tema e aplica com `cosmic-settings appearance import` |
+| `terminal`  | `scripts/20-terminal.sh`      | Baixa o esquema do terminal e confere se ele foi importado |
 | `bash`      | `scripts/30-bash-prompt.sh`   | Instala `~/.config/catppuccin/catppuccin-prompt.bash` e um bloco no `~/.bashrc` |
 | `zed`       | `scripts/40-zed.sh`           | Só confere as extensões e o `settings.json`, sem alterar nada |
 | `icons`     | `scripts/50-icons.sh`         | Papirus-Dark em `~/.local/share/icons`, pastas `cat-mocha-mauve` |
@@ -50,17 +58,43 @@ mudam com `FLAVOR` nem com `ACCENT`.
 
 ### Desktop COSMIC
 
-- **Origem:** [catppuccin/cosmic-desktop](https://github.com/catppuccin/cosmic-desktop),
-  arquivo `themes/cosmic-settings/catppuccin-mocha-mauve+round.ron`.
-- **Config:** `~/.config/cosmic/com.system76.CosmicTheme.Mode/v1/is_dark = true`.
-- Depois de importado, o COSMIC grava o tema em
-  `~/.config/cosmic/com.system76.CosmicTheme.Dark.Builder/v1/` (o que você
-  escolheu) e em `com.system76.CosmicTheme.Dark/v1/` (o tema calculado).
+- **Gerador:** [`themes/generate.py`](themes/generate.py). As cores e qual
+  cor do Catppuccin vai em cada campo seguem o template oficial de
+  [catppuccin/cosmic-desktop](https://github.com/catppuccin/cosmic-desktop).
+  Conferi campo a campo: as 42 cores batem com o `.ron` oficial do Mocha Mauve.
+- **Prontos no repositório:** [`themes/cosmic-settings/`](themes/cosmic-settings)
+  tem o Mocha em todos os 14 acentos, sólido (`+round.ron`) e com Frosted
+  Glass médio (`+round+frosted.ron`). O instalador também gera Latte, Frappé
+  e Macchiato em `~/.local/share/catppuccin/themes/cosmic-settings/`.
+- **Aplicar à mão**, sem o instalador:
+
+  ```bash
+  cosmic-settings appearance import themes/cosmic-settings/catppuccin-mocha-mauve+round+frosted.ron
+  ```
+
+  Também dá pelo botão **Importar** em Configurações → Desktop → Aparência.
+- **Tema sob medida:**
+
+  ```bash
+  themes/generate.py --accent lavender --frosted high --frost-on windows,panel \
+      --alpha-offset 0.05 --roundness slightlyround -o meu-tema.ron
+  themes/generate.py --help    # todas as opções
+  ```
+
+- **Onde o COSMIC grava:** `~/.config/cosmic/com.system76.CosmicTheme.Dark.Builder/v2/`
+  (o que você escolheu) e `com.system76.CosmicTheme.Dark/v2/` (o tema calculado
+  a partir disso: cores de botões, contêineres, bordas).
 
 ### COSMIC Terminal
 
-- **Origem:** o mesmo repositório, `themes/cosmic-term/catppuccin-mocha.ron`.
+- **Origem:** [catppuccin/cosmic-desktop](https://github.com/catppuccin/cosmic-desktop),
+  `themes/cosmic-term/catppuccin-mocha.ron`. O formato não mudou no 1.10.
 - Texto `#cdd6f4`, cursor Rosewater `#f5e0dc` e as 16 cores ANSI do Mocha.
+- Não define fundo próprio: o terminal usa o fundo do tema do desktop,
+  então também fica translúcido com Frosted Glass.
+- **Importar (manual, o terminal não tem comando para isso):** COSMIC Terminal →
+  View → Color schemes… → **Import** →
+  `~/.local/share/catppuccin/themes/cosmic-term/catppuccin-mocha.ron`
 
 ### Prompt do bash
 
@@ -116,25 +150,40 @@ Para gerar em outra resolução:
 python3 wallpaper/generate.py ~/Pictures/Wallpapers/catppuccin-mocha.png 3840 2160
 ```
 
-## Por que dois passos são manuais
+## Formato do COSMIC 1.10
 
-O tema do desktop e o esquema do terminal só entram pela interface:
+O COSMIC 1.10 passou o tema para a versão 2 do formato (`ThemeBuilder` v2,
+gravado em `.../v2/` em vez de `.../v1/`). Os `.ron` oficiais do Catppuccin
+ainda estão no formato antigo. Eles importam sem erro, mas:
 
-1. **Desktop:** Configurações → Desktop → Aparência → **Importar** →
-   `~/.local/share/catppuccin/themes/cosmic-settings/catppuccin-mocha-mauve+round.ron`
-2. **Terminal:** COSMIC Terminal → View → Color schemes… → **Import** →
-   `~/.local/share/catppuccin/themes/cosmic-term/catppuccin-mocha.ron`
+| Campo                           | Formato antigo (v1) | COSMIC 1.10 (v2)                                |
+| ------------------------------- | ------------------- | ----------------------------------------------- |
+| Transparência                   | `is_frosted: bool`  | removido, ignorado em silêncio                  |
+| Intensidade do desfoque         | —                   | `frosted: Medium` (14 níveis, de `ExtremelyLow` a `ExtremelyHigh2`) |
+| Onde há desfoque                | —                   | `frosted_windows`, `frosted_system_interface`, `frosted_panel`, `frosted_applets`, `frosted_maximized_apps` |
+| Opacidade de cada intensidade   | —                   | `alpha_map: (extremely_low: 0.9, ..., extremely_high_2: 0.6)` |
+| Paleta                          | tinha `blue`, `red`, `green`, `yellow`, `gray_3` | esses campos saíram (ignorados) |
+| Cores                           | `(red: 0.79, green: 0.65, blue: 0.96)` | `"#CBA6F7FF"` (o antigo ainda é aceito) |
 
-No desktop, o `.ron` guarda só as cores base. Ao importar, o
-`cosmic-settings` calcula a partir delas o tema completo (botões,
-contêineres, bordas). Copiar o `.ron` direto para a config não faz esse
-cálculo. Os scripts mostram os caminhos e, ao rodar de novo, reconhecem que
-a importação já foi feita.
+**Consequência:** como os campos `frosted_*` faltam no arquivo antigo, eles
+ficam `false`. Ou seja, **importar o `.ron` oficial desliga o Frosted Glass**.
+O gerador daqui escreve todos os campos novos. Com `FROSTED=auto`, o
+instalador ainda repete o Frosted Glass que você já usava.
+
+Como o Frosted Glass funciona: o fundo das janelas (Base `#1e1e2e`) fica
+com a opacidade de `alpha_map` na intensidade escolhida (`medium` = 76%),
+e o compositor desfoca o que está atrás. O controle de opacidade em
+Aparência soma um mesmo valor a todo o `alpha_map`, igual ao `--alpha-offset`.
+
+Para conferir, validei todos os 112 temas gerados com o parser real do
+libcosmic, no mesmo commit usado pelo cosmic-settings 1.10 instalado
+(`5a8bd94`), e importei o Mocha Mauve com `cosmic-settings appearance import`.
 
 ## Desfazer
 
 ```bash
 ./uninstall.sh                 # volta ao último backup
+cosmic-settings appearance import ~/.config/catppuccin-backup-.../tema-anterior.ron   # só o tema
 ./uninstall.sh ~/.config/catppuccin-backup-2026-10-17   # um backup específico
 PURGE=1 ./uninstall.sh         # também apaga Papirus, temas e o papel de parede
 ```
@@ -153,5 +202,7 @@ scripts/lib.sh                 caminhos, versões fixas e funções comuns
 scripts/NN-*.sh                um passo por arquivo, cada um roda sozinho
 config/bash/                   prompt do bash
 config/cosmic/                 valores escritos no cosmic-config
+themes/generate.py             gerador de temas COSMIC 1.10 (com Frosted Glass)
+themes/cosmic-settings/        temas Mocha prontos, sólidos e com Frosted Glass
 wallpaper/                     gerador e imagem do papel de parede
 ```

@@ -7,7 +7,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COSMIC_DIR="$HOME/.config/cosmic"
-DATA_DIR="$HOME/.local/share/catppuccin"   # temas .ron baixados
+DATA_DIR="$HOME/.local/share/catppuccin"   # temas .ron gerados e baixados
 ICONS_DIR="$HOME/.local/share/icons"       # Papirus vai aqui (sem sudo)
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/catppuccin-mocha-cosmic"
 WALLPAPER="$HOME/Pictures/Wallpapers/catppuccin-mocha.png"

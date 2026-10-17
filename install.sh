@@ -9,7 +9,10 @@
 #
 # Variáveis opcionais:
 #   FLAVOR=mocha   ACCENT=mauve  # outro acento: ACCENT=lavender ./install.sh
-#   NO_GUI=1                     # não abre as Configurações no passo 10
+#   FROSTED=auto|off|medium|...  # Frosted Glass (padrão: mantém o atual)
+#   FROST_ON=windows,panel,...   # onde o Frosted Glass vale
+#   ALPHA_OFFSET=0.1             # mais opaco (negativo = mais transparente)
+#   NO_APPLY=1                   # só gera o tema, não aplica
 #   NO_BACKUP=1                  # pula o backup
 #
 # Pode rodar quantas vezes quiser: cada passo sobrescreve o que ele mesmo
