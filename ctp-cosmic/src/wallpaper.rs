@@ -1,33 +1,28 @@
-//! ctp-wallpaper: procedural Catppuccin wallpapers for any flavor and accent.
+//! `ctp-cosmic wallpaper`: procedural Catppuccin wallpapers for any flavor
+//! and accent.
 //!
 //! Every image is drawn from the official palette only, and the output is
 //! deterministic: the same options always produce the same pixels.
 
-mod image;
-mod noise;
-mod palette;
-mod styles;
-
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
 
 use rayon::prelude::*;
 
-use palette::Palette;
+use crate::palette::{self, Palette};
+use crate::{image, styles};
 
 const USAGE: &str = "\
-ctp-wallpaper: procedural Catppuccin wallpapers
+ctp-cosmic wallpaper: procedural Catppuccin wallpapers
 
 Usage:
-  ctp-wallpaper [OPTIONS] OUTPUT.png      render one wallpaper
-  ctp-wallpaper [OPTIONS] --all DIR       render every style into DIR as
-                                          catppuccin-<flavor>-<accent>-<style>.png
-  ctp-wallpaper --preview OUTPUT.png [--accent A] [--thumb WxH]
-                                          grid of every style (rows) in every
-                                          flavor (columns), for the README
-  ctp-wallpaper --list-styles             style names, one per line
-  ctp-wallpaper --describe-styles         style names with a description
-  ctp-wallpaper --dump-palette            every color as \"flavor color rrggbb\"
+  ctp-cosmic wallpaper [OPTIONS] OUTPUT.png   render one wallpaper
+  ctp-cosmic wallpaper [OPTIONS] --all DIR    render every style into DIR as
+                                              catppuccin-<flavor>-<accent>-<style>.png
+  ctp-cosmic wallpaper --preview OUTPUT.png [--accent A] [--thumb WxH]
+                                              grid of every style (rows) in every
+                                              flavor (columns), for the README
+  ctp-cosmic wallpaper --list-styles          style names, one per line
+  ctp-cosmic wallpaper --describe-styles      style names with a description
 
 Options:
   --style NAME     glow (default), waves, stripes, dots, triangles, mesh,
@@ -37,7 +32,6 @@ Options:
   --size WxH       image size (default: 2560x1440)
   --thumb WxH      thumbnail size for --preview (default: 256x144)
   -h, --help       show this help
-  -V, --version    show the version
 ";
 
 struct Args {
@@ -65,7 +59,7 @@ fn parse_size(s: &str) -> Result<(usize, usize), String> {
     }
 }
 
-fn parse_args() -> Result<Option<Args>, String> {
+fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Option<Args>, String> {
     let mut a = Args {
         output: None,
         all: None,
@@ -76,16 +70,12 @@ fn parse_args() -> Result<Option<Args>, String> {
         size: (2560, 1440),
         thumb: (256, 144),
     };
-    let mut it = std::env::args().skip(1);
+    let mut it = args.into_iter();
     while let Some(arg) = it.next() {
         let mut value = |name: &str| it.next().ok_or(format!("{name} needs a value"));
         match arg.as_str() {
             "-h" | "--help" => {
                 print!("{USAGE}");
-                return Ok(None);
-            }
-            "-V" | "--version" => {
-                println!("ctp-wallpaper {}", env!("CARGO_PKG_VERSION"));
                 return Ok(None);
             }
             "--list-styles" => {
@@ -96,10 +86,6 @@ fn parse_args() -> Result<Option<Args>, String> {
                 styles::list()
                     .iter()
                     .for_each(|(n, d)| println!("{n:<11} {d}"));
-                return Ok(None);
-            }
-            "--dump-palette" => {
-                print!("{}", palette::dump());
                 return Ok(None);
             }
             "--style" => a.style = value("--style")?,
@@ -204,29 +190,16 @@ fn run(a: &Args) -> Result<(), String> {
     })
 }
 
-fn main() -> ExitCode {
-    match parse_args().and_then(|a| a.map(|a| run(&a)).transpose()) {
-        Ok(_) => ExitCode::SUCCESS,
-        Err(e) => {
-            eprintln!("ctp-wallpaper: {e}");
-            ExitCode::FAILURE
-        }
+pub fn main(args: Vec<String>) -> Result<(), String> {
+    match parse_args(args)? {
+        Some(a) => run(&a),
+        None => Ok(()),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn palette_has_official_shape() {
-        assert_eq!(
-            palette::flavors(),
-            ["latte", "frappe", "macchiato", "mocha"]
-        );
-        assert_eq!(palette::accents().len(), 14);
-        assert_eq!(palette::dump().lines().count(), 4 * 26);
-    }
 
     #[test]
     fn every_style_renders_every_flavor_deterministically() {

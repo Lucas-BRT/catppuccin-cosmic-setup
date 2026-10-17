@@ -4,8 +4,7 @@
 #
 # One style (default): puts catppuccin-<flavor>-<accent>[-<style>].png in
 # ~/Pictures/Wallpapers/ and sets it as the background for every display.
-# Images are rendered by ctp-wallpaper (wallpaper/, Rust; well under a
-# second each), downloaded prebuilt and hash-checked, or built with cargo.
+# Images are rendered by `ctp-cosmic wallpaper` (well under a second each).
 #
 # WALLPAPER_STYLE=all: renders every style into
 # ~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>/ and adds that folder to
@@ -30,47 +29,23 @@ set_background() {
         > "$COSMIC_DIR/com.system76.CosmicBackground/v1/all"
 }
 
-# Add the folder to the wallpaper picker the way COSMIC Settings does:
-# "recent-folders" keeps at most five entries (oldest dropped first), and
-# "current-folder" is the one the picker opens on.
-register_folder() {
-    mkdir -p "$settings"
-    python3 -I - "$settings" "$1" <<'PY'
-import os, re, sys
-settings, folder = sys.argv[1], sys.argv[2]
-path = os.path.join(settings, "recent-folders")
-try:
-    with open(path) as f:
-        folders = re.findall(r'"((?:[^"\\]|\\.)*)"', f.read())
-except FileNotFoundError:
-    folders = []
-if folder not in folders:
-    while len(folders) > 4:
-        folders.pop(0)
-    folders.append(folder)
-with open(path, "w") as f:
-    f.write("[\n" + "".join('    "%s",\n' % p for p in folders) + "]")
-with open(os.path.join(settings, "current-folder"), "w") as f:
-    f.write('Some("%s")' % folder)
-PY
-}
-
-wallpaper_bin
 
 if [ "$WALLPAPER_STYLE" != all ]; then
     info "Wallpaper ($FLAVOR, $ACCENT accent, $WALLPAPER_STYLE)"
     mkdir -p "$(dirname "$WALLPAPER")"
-    "$WALLPAPER_BIN" "$WALLPAPER" --style "$WALLPAPER_STYLE" --flavor "$FLAVOR" --accent "$ACCENT"
+    ctp wallpaper "$WALLPAPER" --style "$WALLPAPER_STYLE" --flavor "$FLAVOR" --accent "$ACCENT"
     set_background "$WALLPAPER"
     ok "Background: $WALLPAPER"
     exit 0
 fi
 
 info "Wallpapers: every style ($FLAVOR, $ACCENT accent)"
-"$WALLPAPER_BIN" --all "$WALLPAPER_DIR" --flavor "$FLAVOR" --accent "$ACCENT"
+ctp wallpaper --all "$WALLPAPER_DIR" --flavor "$FLAVOR" --accent "$ACCENT"
 ok "$(wc -w <<<"$WALLPAPER_STYLES") wallpapers in $WALLPAPER_DIR"
 
-register_folder "$WALLPAPER_DIR"
+# Same keys COSMIC Settings writes: recent-folders (at most five) and
+# current-folder, the one the picker opens on.
+ctp register-wallpaper-folder "$settings" "$WALLPAPER_DIR"
 ok "Folder added to Settings → Wallpaper"
 
 if [ -n "$ROTATE_SECONDS" ]; then

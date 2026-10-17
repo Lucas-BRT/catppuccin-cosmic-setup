@@ -11,7 +11,7 @@ source "$(dirname "$0")/lib.sh"
 
 info "Bash prompt ($FLAVOR, $ACCENT accent)"
 mkdir -p "$HOME/.config/catppuccin"
-ctp render "$FLAVOR" "$ACCENT" < "$REPO_DIR/config/bash/catppuccin-prompt.bash.in" \
+ctp palette render "$FLAVOR" "$ACCENT" < "$REPO_DIR/config/bash/catppuccin-prompt.bash.in" \
     > "$HOME/.config/catppuccin/catppuccin-prompt.bash"
 
 start='# >>> catppuccin-cosmic-setup >>>'

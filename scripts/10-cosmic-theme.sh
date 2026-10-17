@@ -3,7 +3,7 @@
 # 10 · COSMIC desktop theme
 #
 # Generates the theme in the COSMIC 1.10 format (ThemeBuilder v2) with
-# themes/generate.py and applies it with `cosmic-settings appearance import`,
+# `ctp-cosmic theme` and applies it with `cosmic-settings appearance import`,
 # the same code path as the Import button under Appearance, without opening
 # the window.
 #
@@ -54,12 +54,11 @@ else
 fi
 
 info "COSMIC theme ($FLAVOR, $ACCENT accent, $label)"
-gen="$REPO_DIR/themes/generate.py"
 out="$DATA_DIR/themes/cosmic-settings"
 mkdir -p "$out"
-python3 -I "$gen" --all "$out" 2>/dev/null
+ctp theme --all "$out" 2>/dev/null
 theme="$out/catppuccin-$FLAVOR-$ACCENT+custom.ron"
-python3 -I "$gen" "${args[@]}" -o "$theme"
+ctp theme "${args[@]}" -o "$theme"
 ok "Themes generated in $out"
 
 if [ "${NO_APPLY:-0}" = 1 ]; then

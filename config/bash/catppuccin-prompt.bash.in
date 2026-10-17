@@ -3,7 +3,7 @@
 # Catppuccin bash prompt (template)
 # -----------------------------------------------------------------------------
 # This is a template: scripts/30-bash-prompt.sh renders it with
-#   lib/catppuccin.py render FLAVOR ACCENT
+#   ctp-cosmic palette render FLAVOR ACCENT
 # which replaces each @<color>@ placeholder with that color of the chosen
 # flavor as "R;G;B" (and @accent@ with the chosen accent), then installs the
 # result as ~/.config/catppuccin/catppuccin-prompt.bash.

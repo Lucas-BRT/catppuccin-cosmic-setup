@@ -17,8 +17,9 @@ cd ~/.local/share/catppuccin-cosmic-setup/current
 FLAVOR=frappe ./install.sh bash  # rerun one step with another flavor
 ```
 
-From a git clone, `./install.sh` works the same; the wallpaper generator is
-then downloaded from the pinned release, or built with `cargo`.
+From a git clone, `./install.sh` works the same; `ctp-cosmic` (the Rust tool
+that generates themes and wallpapers) is then downloaded from the pinned
+release, or built with `cargo`.
 
 ## Options
 
@@ -80,16 +81,17 @@ Ready-made Mocha themes (every accent, solid and frosted) are in
 cosmic-settings appearance import themes/cosmic-settings/catppuccin-mocha-mauve+round+frosted.ron
 ```
 
-Or generate your own:
+Or generate your own with `ctp-cosmic`, found in
+`~/.local/share/catppuccin-cosmic-setup/current/bin/` after installing:
 
 ```bash
-themes/generate.py --flavor macchiato --accent teal --frosted high -o my-theme.ron
-themes/generate.py --help
+ctp-cosmic theme --flavor macchiato --accent teal --frosted high -o my-theme.ron
+ctp-cosmic theme --help
 ```
 
 ## Wallpapers
 
-Rows in the [preview](../wallpaper/previews.png) follow this order:
+Rows in the [preview](previews.png) follow this order:
 
 | Style | |
 | --- | --- |
@@ -121,14 +123,10 @@ unless `WALLPAPER_ROTATE` is set.
 
 ### Rendering by hand
 
-The generator is `ctp-wallpaper`. The installer caches it in
-`~/.cache/catppuccin-cosmic-setup/bin/`, or build it with
-`cargo build --release` in [`wallpaper/`](../wallpaper):
-
 ```bash
-ctp-wallpaper out.png --style dots --flavor latte --accent teal --size 3840x2160
-ctp-wallpaper --all out-dir/ --flavor frappe --accent peach
-ctp-wallpaper --help
+ctp-cosmic wallpaper out.png --style dots --flavor latte --accent teal --size 3840x2160
+ctp-cosmic wallpaper --all out-dir/ --flavor frappe --accent peach
+ctp-cosmic wallpaper --help
 ```
 
 ## Uninstalling

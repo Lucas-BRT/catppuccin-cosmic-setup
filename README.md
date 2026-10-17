@@ -4,14 +4,13 @@
 [![Release](https://img.shields.io/github/v/release/Lucas-BRT/catppuccin-cosmic-setup?style=for-the-badge&label=release&labelColor=363a4f&color=c6a0f6)](https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases)
 [![License](https://img.shields.io/github/license/Lucas-BRT/catppuccin-cosmic-setup?style=for-the-badge&labelColor=363a4f&color=a6da95)](LICENSE)
 [![COSMIC](https://img.shields.io/badge/COSMIC-1.10-8aadf4?style=for-the-badge&labelColor=363a4f)](https://system76.com/cosmic)
-[![Rust](https://img.shields.io/badge/Rust-f5a97f?style=for-the-badge&logo=rust&logoColor=24273a)](wallpaper)
+[![Rust](https://img.shields.io/badge/Rust-f5a97f?style=for-the-badge&logo=rust&logoColor=24273a)](ctp-cosmic)
 [![Bash](https://img.shields.io/badge/Bash-a6da95?style=for-the-badge&logo=gnubash&logoColor=24273a)](scripts)
-[![Python](https://img.shields.io/badge/Python-eed49f?style=for-the-badge&logo=python&logoColor=24273a)](themes)
 
 One-command [Catppuccin](https://catppuccin.com) setup for Pop!_OS 24.04
 (COSMIC), in any of the 4 flavors and 14 accents.
 
-![Wallpaper styles in every flavor](wallpaper/previews.png)
+![Wallpaper styles in every flavor](docs/previews.png)
 
 ## Install
 

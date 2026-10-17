@@ -2,11 +2,11 @@
 # =============================================================================
 # Build the release package that get.sh downloads.
 #
-#   scripts/dev/package.sh v0.1.0 x86_64 path/to/ctp-wallpaper out-dir/
+#   scripts/dev/package.sh v0.2.0 x86_64 path/to/ctp-cosmic out-dir/
 #
 # Writes out-dir/catppuccin-cosmic-setup-<arch>-linux.tar.gz holding
 # catppuccin-cosmic-setup-<version>/ with the installer, its data and the
-# ctp-wallpaper binary in bin/. Used by .github/workflows/release.yml.
+# ctp-cosmic binary in bin/. Used by .github/workflows/release.yml.
 # =============================================================================
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -20,13 +20,12 @@ name="catppuccin-cosmic-setup-$version"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-mkdir -p "$work/$name/bin" "$work/$name/wallpaper" "$work/$name/scripts"
-cp -r install.sh uninstall.sh LICENSE README.md docs lib themes config "$work/$name/"
+mkdir -p "$work/$name/bin" "$work/$name/scripts" "$work/$name/docs"
+cp -r install.sh uninstall.sh LICENSE README.md themes config "$work/$name/"
+cp docs/*.md "$work/$name/docs/"
 cp scripts/*.sh "$work/$name/scripts/"
-cp wallpaper/styles.txt "$work/$name/wallpaper/"
-install -m 755 "$binary" "$work/$name/bin/ctp-wallpaper"
+install -m 755 "$binary" "$work/$name/bin/ctp-cosmic"
 printf '%s\n' "$version" > "$work/$name/VERSION"
-find "$work/$name" -name __pycache__ -prune -exec rm -rf {} +
 
 mkdir -p "$outdir"
 tar -C "$work" -czf "$outdir/catppuccin-cosmic-setup-$arch-linux.tar.gz" "$name"

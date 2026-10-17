@@ -12,23 +12,99 @@ COSMIC_DIR="$HOME/.config/cosmic"
 DATA_DIR="$HOME/.local/share/catppuccin"   # generated and downloaded .ron themes
 ICONS_DIR="$HOME/.local/share/icons"       # Papirus goes here (no sudo)
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/catppuccin-cosmic-setup"
+GITHUB_REPO=Lucas-BRT/catppuccin-cosmic-setup
+
+# Upstream repositories pinned to exact commits so installs are
+# reproducible. To update, replace the hash with the commit you want.
+CTP_COSMIC_REPO=https://github.com/catppuccin/cosmic-desktop.git
+CTP_COSMIC_REV=95e81098042dd2102f0b258f6990f886c5759692
+CTP_FOLDERS_REPO=https://github.com/catppuccin/papirus-folders.git
+CTP_FOLDERS_REV=f83671d17ea67e335b34f8028a7e6d78bca735d7
+PAPIRUS_REPO=https://github.com/PapirusDevelopmentTeam/papirus-icon-theme.git
+PAPIRUS_REV=bf539287ef5dc18529424a02cccee76175920a6f
+PAPIRUS_FOLDERS_REPO=https://github.com/PapirusDevelopmentTeam/papirus-folders.git
+PAPIRUS_FOLDERS_REV=0f838ee5679229e3a3e97e3b333c222c9e9615b4
+
+# Colored messages using the palette itself.
+info() { printf '\e[38;2;137;180;250m==>\e[0m %s\n' "$*"; }   # blue
+ok()   { printf '\e[38;2;166;227;161m ✓\e[0m %s\n' "$*"; }    # green
+warn() { printf '\e[38;2;249;226;175m !\e[0m %s\n' "$*"; }    # yellow
+todo() { printf '\e[38;2;203;166;247m ➜\e[0m %s\n' "$*"; }    # mauve
+
+# --- ctp-cosmic -----------------------------------------------------------
+# ctp-cosmic (ctp-cosmic/, Rust) does everything the scripts compute: palette
+# lookups, desktop themes and wallpapers. Release packages installed with
+# get.sh include it in bin/. In a git clone, the prebuilt binary is
+# downloaded from the release named in ctp-cosmic/RELEASE and only run if it
+# matches the hash pinned in ctp-cosmic/SHA256SUMS; without a pinned binary
+# for this machine, or with BUILD_FROM_SOURCE=1, it is built with cargo.
+find_ctp() {
+    local tag arch asset expected bin
+    if [ -x "$REPO_DIR/bin/ctp-cosmic" ] && [ "${BUILD_FROM_SOURCE:-0}" != 1 ]; then
+        CTP_BIN="$REPO_DIR/bin/ctp-cosmic"
+        return 0
+    fi
+    tag=$(cat "$REPO_DIR/ctp-cosmic/RELEASE" 2>/dev/null || true)
+    case "$(uname -m)" in
+        x86_64 | amd64) arch=x86_64 ;;
+        aarch64 | arm64) arch=aarch64 ;;
+        *) arch="" ;;
+    esac
+    asset="ctp-cosmic-$arch-linux"
+    expected=$(awk -v a="$asset" '$2 == a { print $1 }' "$REPO_DIR/ctp-cosmic/SHA256SUMS" 2>/dev/null || true)
+
+    if [ "${BUILD_FROM_SOURCE:-0}" != 1 ] && [ -n "$tag" ] && [ -n "$arch" ] && [ -n "$expected" ]; then
+        bin="$CACHE_DIR/bin/$tag/$asset"
+        if ! sha256sum -c --status <<<"$expected  $bin" 2>/dev/null; then
+            mkdir -p "$(dirname "$bin")"
+            if curl -fsSL --proto '=https' --tlsv1.2 -o "$bin.part" \
+                "https://github.com/$GITHUB_REPO/releases/download/$tag/$asset"; then
+                if ! sha256sum -c --status <<<"$expected  $bin.part"; then
+                    rm -f "$bin.part"
+                    echo "ctp-cosmic download does not match ctp-cosmic/SHA256SUMS; refusing to run it" >&2
+                    exit 1
+                fi
+                chmod +x "$bin.part"
+                mv "$bin.part" "$bin"
+            else
+                rm -f "$bin.part"
+                warn "Could not download ctp-cosmic $tag; trying a local build"
+                bin=""
+            fi
+        fi
+        if [ -n "$bin" ]; then
+            CTP_BIN=$bin
+            return 0
+        fi
+    fi
+
+    if ! command -v cargo >/dev/null; then
+        echo "no prebuilt ctp-cosmic for $(uname -m) and cargo is not installed;" >&2
+        echo "install Rust from https://rustup.rs and run the installer again" >&2
+        exit 1
+    fi
+    CTP_BIN="$CACHE_DIR/target/release/ctp-cosmic"
+    [ -x "$CTP_BIN" ] || info "Building ctp-cosmic with cargo (first time takes a minute)"
+    cargo build --release --locked --quiet \
+        --manifest-path "$REPO_DIR/ctp-cosmic/Cargo.toml" --target-dir "$CACHE_DIR/target"
+}
+find_ctp
+ctp() { "$CTP_BIN" "$@"; }
 
 # Catppuccin flavor and accent. Override with environment variables:
 #   FLAVOR=latte ACCENT=lavender ./install.sh
 FLAVOR="${FLAVOR:-mocha}"
 ACCENT="${ACCENT:-mauve}"
+ctp palette check "$FLAVOR" "$ACCENT"
 
-# Palette helper (lib/catppuccin.py): check, name, is-dark, rgb, render.
-ctp() { python3 -I "$REPO_DIR/lib/catppuccin.py" "$@"; }
-ctp check "$FLAVOR" "$ACCENT"
+# Papirus has a dark and a light variant; Latte is the only light flavor.
+if ctp palette is-dark "$FLAVOR"; then ICON_THEME=Papirus-Dark; else ICON_THEME=Papirus; fi
 
 # Wallpaper style, or "all" to render every style into a folder for COSMIC's
 # wallpaper picker. The default "glow" keeps the plain
-# catppuccin-<flavor>-<accent>.png name. The style names come from
-# wallpaper/styles.txt, the same list compiled into ctp-wallpaper, so they
-# can be validated before anything is downloaded or built.
+# catppuccin-<flavor>-<accent>.png name.
 WALLPAPER_STYLE="${WALLPAPER_STYLE:-glow}"
-WALLPAPER_STYLES=$(grep -v '^#' "$REPO_DIR/wallpaper/styles.txt" | cut -f1)
+WALLPAPER_STYLES=$(ctp wallpaper --list-styles)
 if [ "$WALLPAPER_STYLE" != all ] && ! grep -qx "$WALLPAPER_STYLE" <<<"$WALLPAPER_STYLES"; then
     echo "unknown wallpaper style '$WALLPAPER_STYLE' (choose: $(paste -sd, <<<"$WALLPAPER_STYLES" | sed 's/,/, /g'), all)" >&2
     exit 1
@@ -54,25 +130,6 @@ if [ -n "$WALLPAPER_ROTATE" ]; then
         exit 1
     fi
 fi
-# Papirus has a dark and a light variant; Latte is the only light flavor.
-if ctp is-dark "$FLAVOR"; then ICON_THEME=Papirus-Dark; else ICON_THEME=Papirus; fi
-
-# Upstream repositories pinned to exact commits so installs are
-# reproducible. To update, replace the hash with the commit you want.
-CTP_COSMIC_REPO=https://github.com/catppuccin/cosmic-desktop.git
-CTP_COSMIC_REV=95e81098042dd2102f0b258f6990f886c5759692
-CTP_FOLDERS_REPO=https://github.com/catppuccin/papirus-folders.git
-CTP_FOLDERS_REV=f83671d17ea67e335b34f8028a7e6d78bca735d7
-PAPIRUS_REPO=https://github.com/PapirusDevelopmentTeam/papirus-icon-theme.git
-PAPIRUS_REV=bf539287ef5dc18529424a02cccee76175920a6f
-PAPIRUS_FOLDERS_REPO=https://github.com/PapirusDevelopmentTeam/papirus-folders.git
-PAPIRUS_FOLDERS_REV=0f838ee5679229e3a3e97e3b333c222c9e9615b4
-
-# Colored messages using the palette itself.
-info() { printf '\e[38;2;137;180;250m==>\e[0m %s\n' "$*"; }   # blue
-ok()   { printf '\e[38;2;166;227;161m ✓\e[0m %s\n' "$*"; }    # green
-warn() { printf '\e[38;2;249;226;175m !\e[0m %s\n' "$*"; }    # yellow
-todo() { printf '\e[38;2;203;166;247m ➜\e[0m %s\n' "$*"; }    # mauve
 
 # Download a GitHub repository at an exact commit (as a tarball, so git is
 # not needed) into dest. Skips the download when dest already holds that
@@ -100,65 +157,3 @@ cosmic_set() {
 
 # Strip // comments from one of the repo's RON files before installing it.
 strip_ron_comments() { sed -e 's#[[:space:]]*//.*$##' -e '/^[[:space:]]*$/d' "$1"; }
-
-# --- wallpaper generator binary ---------------------------------------------
-# ctp-wallpaper (wallpaper/, Rust). Release packages installed with get.sh
-# include it in bin/. In a git clone, the prebuilt binary is downloaded from
-# the release named in wallpaper/RELEASE and only run if it matches the hash
-# pinned in wallpaper/SHA256SUMS.
-GITHUB_REPO=Lucas-BRT/catppuccin-cosmic-setup
-
-# Set WALLPAPER_BIN to a usable ctp-wallpaper: the bundled one, else the
-# verified prebuilt binary for this machine, else a local build with cargo.
-# BUILD_FROM_SOURCE=1 always builds locally.
-wallpaper_bin() {
-    local tag arch asset expected bin
-    # Release packages (get.sh) ship the binary for their architecture.
-    if [ -x "$REPO_DIR/bin/ctp-wallpaper" ] && [ "${BUILD_FROM_SOURCE:-0}" != 1 ]; then
-        WALLPAPER_BIN="$REPO_DIR/bin/ctp-wallpaper"
-        return 0
-    fi
-    tag=$(cat "$REPO_DIR/wallpaper/RELEASE" 2>/dev/null || true)
-    case "$(uname -m)" in
-        x86_64 | amd64) arch=x86_64 ;;
-        aarch64 | arm64) arch=aarch64 ;;
-        *) arch="" ;;
-    esac
-    asset="ctp-wallpaper-$arch-linux"
-    expected=$(awk -v a="$asset" '$2 == a { print $1 }' "$REPO_DIR/wallpaper/SHA256SUMS" 2>/dev/null || true)
-
-    if [ "${BUILD_FROM_SOURCE:-0}" != 1 ] && [ -n "$tag" ] && [ -n "$arch" ] && [ -n "$expected" ]; then
-        bin="$CACHE_DIR/bin/$tag/$asset"
-        if ! sha256sum -c --status <<<"$expected  $bin" 2>/dev/null; then
-            mkdir -p "$(dirname "$bin")"
-            if curl -fsSL --proto '=https' --tlsv1.2 -o "$bin.part" \
-                "https://github.com/$GITHUB_REPO/releases/download/$tag/$asset"; then
-                if ! sha256sum -c --status <<<"$expected  $bin.part"; then
-                    rm -f "$bin.part"
-                    echo "ctp-wallpaper download does not match wallpaper/SHA256SUMS; refusing to run it" >&2
-                    exit 1
-                fi
-                chmod +x "$bin.part"
-                mv "$bin.part" "$bin"
-            else
-                rm -f "$bin.part"
-                warn "Could not download ctp-wallpaper $tag; trying a local build"
-                bin=""
-            fi
-        fi
-        if [ -n "$bin" ]; then
-            WALLPAPER_BIN=$bin
-            return 0
-        fi
-    fi
-
-    if ! command -v cargo >/dev/null; then
-        echo "no prebuilt ctp-wallpaper for $(uname -m) and cargo is not installed;" >&2
-        echo "install Rust from https://rustup.rs and run the installer again" >&2
-        exit 1
-    fi
-    info "Building ctp-wallpaper with cargo (first time takes a minute)"
-    cargo build --release --locked --quiet \
-        --manifest-path "$REPO_DIR/wallpaper/Cargo.toml" --target-dir "$CACHE_DIR/target"
-    WALLPAPER_BIN="$CACHE_DIR/target/release/ctp-wallpaper"
-}

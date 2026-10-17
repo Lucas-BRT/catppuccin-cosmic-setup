@@ -1,5 +1,5 @@
 # Wallpaper styles: name<TAB>description, in display order.
-# Read by ctp-wallpaper (include_str!) and by scripts/lib.sh (validation).
+# Compiled into ctp-cosmic (include_str!); see `ctp-cosmic wallpaper --list-styles`.
 glow	Crust→Base gradient with soft glows in the accent, Blue and Pink
 waves	layered hills rising from the bottom, fading into the accent
 stripes	a diagonal ribbon of the accent and its neighbor colors

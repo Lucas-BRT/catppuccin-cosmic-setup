@@ -34,7 +34,7 @@ main() {
         aarch64 | arm64) arch=aarch64 ;;
         *) die "no release package for $(uname -m)" ;;
     esac
-    for cmd in curl tar sha256sum python3; do
+    for cmd in curl tar sha256sum; do
         command -v "$cmd" >/dev/null || die "$cmd is required"
     done
 

@@ -17,8 +17,8 @@ source "$(dirname "$0")/lib.sh"
 
 info "Zed"
 settings="$HOME/.config/zed/settings.json"
-name="Catppuccin $(ctp name "$FLAVOR")"   # e.g. "Catppuccin Frappé"
-if ctp is-dark "$FLAVOR"; then mode=dark; else mode=light; fi
+name="Catppuccin $(ctp palette name "$FLAVOR")"   # e.g. "Catppuccin Frappé"
+if ctp palette is-dark "$FLAVOR"; then mode=dark; else mode=light; fi
 if ! command -v zed >/dev/null && ! command -v zeditor >/dev/null; then
     warn "Zed not found, skipping"; exit 0
 fi

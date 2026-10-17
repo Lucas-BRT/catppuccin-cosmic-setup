@@ -14,7 +14,7 @@ use crate::palette::{Palette, Rgb};
 
 pub type PixelFn = Box<dyn Fn(usize, usize) -> Rgb + Sync + Send>;
 
-/// Style names and descriptions in display order, from wallpaper/styles.txt
+/// Style names and descriptions in display order, from styles.txt
 /// (shared with the installer, which validates style names before running).
 pub fn list() -> Vec<(&'static str, &'static str)> {
     include_str!("../styles.txt")

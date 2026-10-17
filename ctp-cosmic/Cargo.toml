@@ -1,0 +1,28 @@
+[package]
+name = "ctp-cosmic"
+version = "0.2.0"
+edition = "2024"
+description = "Catppuccin for COSMIC: palette, desktop themes and procedural wallpapers"
+license = "MIT"
+repository = "https://github.com/Lucas-BRT/catppuccin-cosmic-setup"
+publish = false
+
+[[bin]]
+name = "ctp-cosmic"
+path = "src/main.rs"
+
+[dependencies]
+catppuccin = "2.8.0"
+png = "0.18.1"
+rayon = "1.12.0"
+ron = "0.8"
+
+[dev-dependencies]
+# Only for tests: the generated themes are parsed with COSMIC's own
+# ThemeBuilder, at the libcosmic commit used by cosmic-settings 1.10.
+cosmic-theme = { git = "https://github.com/pop-os/libcosmic", rev = "5a8bd9482a35ae94c1e54edf77b331c6b970f170", default-features = false }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

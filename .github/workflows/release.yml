@@ -2,11 +2,11 @@ name: Release
 
 # To release:
 #   git tag vX.Y.Z && git push origin vX.Y.Z
-# This builds static ctp-wallpaper binaries (x86_64, aarch64), packages the
+# This builds static ctp-cosmic binaries (x86_64, aarch64), packages the
 # setup for each architecture with its binary inside, and publishes them
 # with get.sh and a SHA256SUMS file as the latest release, which is what
 #   curl -fsSL .../releases/latest/download/get.sh | bash
-# installs. Optionally run scripts/dev/pin-wallpaper-release.sh vX.Y.Z and
+# installs. Optionally run scripts/dev/pin-release.sh vX.Y.Z and
 # commit, so installs from a git clone use the new binaries too.
 
 on:
@@ -36,14 +36,14 @@ jobs:
           TARGET: ${{ matrix.target }}
           ARCH: ${{ matrix.arch }}
         run: |
-          cargo build --release --locked --target "$TARGET" --manifest-path wallpaper/Cargo.toml
+          cargo build --release --locked --target "$TARGET" --manifest-path ctp-cosmic/Cargo.toml
           mkdir dist
-          cp "wallpaper/target/$TARGET/release/ctp-wallpaper" "dist/ctp-wallpaper-$ARCH-linux"
+          cp "ctp-cosmic/target/$TARGET/release/ctp-cosmic" "dist/ctp-cosmic-$ARCH-linux"
       - name: Package
         env:
           ARCH: ${{ matrix.arch }}
           TAG: ${{ github.ref_name }}
-        run: scripts/dev/package.sh "$TAG" "$ARCH" "dist/ctp-wallpaper-$ARCH-linux" dist
+        run: scripts/dev/package.sh "$TAG" "$ARCH" "dist/ctp-cosmic-$ARCH-linux" dist
       - name: Smoke test the package
         env:
           ARCH: ${{ matrix.arch }}
@@ -51,9 +51,12 @@ jobs:
           mkdir "$RUNNER_TEMP/pkg"
           tar -xzf "dist/catppuccin-cosmic-setup-$ARCH-linux.tar.gz" -C "$RUNNER_TEMP/pkg"
           setup=$(echo "$RUNNER_TEMP"/pkg/catppuccin-cosmic-setup-*)
-          file "$setup/bin/ctp-wallpaper"
-          "$setup/bin/ctp-wallpaper" --all "$RUNNER_TEMP/out" --flavor latte --accent teal
-          test "$(ls "$RUNNER_TEMP/out" | wc -l)" -eq "$(grep -vc '^#' "$setup/wallpaper/styles.txt")"
+          bin="$setup/bin/ctp-cosmic"
+          file "$bin"
+          "$bin" wallpaper --all "$RUNNER_TEMP/out" --flavor latte --accent teal
+          test "$(ls "$RUNNER_TEMP/out" | wc -l)" -eq "$("$bin" wallpaper --list-styles | wc -l)"
+          "$bin" theme --all "$RUNNER_TEMP/themes"
+          "$bin" palette check latte teal
           "$setup/install.sh" --list
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -80,7 +83,7 @@ jobs:
         run: |
           cp get.sh dist/
           cd dist
-          sha256sum catppuccin-cosmic-setup-*.tar.gz ctp-wallpaper-* get.sh > SHA256SUMS
+          sha256sum catppuccin-cosmic-setup-*.tar.gz ctp-cosmic-* get.sh > SHA256SUMS
           cat SHA256SUMS
           gh release create "$TAG" --repo "$REPO" --title "$TAG" --latest \
             --notes "Install with:
@@ -88,4 +91,4 @@ jobs:
           \`\`\`bash
           curl -fsSL https://github.com/$REPO/releases/latest/download/get.sh | bash
           \`\`\`" \
-            catppuccin-cosmic-setup-*.tar.gz ctp-wallpaper-* get.sh SHA256SUMS
+            catppuccin-cosmic-setup-*.tar.gz ctp-cosmic-* get.sh SHA256SUMS
