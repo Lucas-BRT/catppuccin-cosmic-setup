@@ -4,10 +4,10 @@
 
 ## Options
 
-Everything is set with environment variables:
+Everything is set with environment variables, and steps can be run on
+their own:
 
 ```bash
-FLAVOR=frappe ACCENT=lavender ./install.sh
 ./install.sh --list              # list the steps
 ./install.sh icons wallpaper     # run only some steps
 ```
@@ -20,7 +20,7 @@ FLAVOR=frappe ACCENT=lavender ./install.sh
 | `FROST_ON` | all but `maximized_apps` | where Frosted Glass applies: `windows`, `system_interface`, `panel`, `applets`, `maximized_apps` |
 | `ALPHA_OFFSET` | `0` | Frosted Glass opacity tweak (`0.1` more opaque, `-0.1` more transparent) |
 | `WALLPAPER_STYLE` | `glow` | a wallpaper style, or `all` (see [Wallpapers](#wallpapers)) |
-| `WALLPAPER_ROTATE` | | with `WALLPAPER_STYLE=all`: slideshow interval, `5m` `10m` `15m` `30m` `1h` `2h` |
+| `WALLPAPER_ROTATE` | | slideshow interval for `WALLPAPER_STYLE=all`: `5m` `10m` `15m` `30m` `1h` `2h` |
 | `NO_APPLY` | `0` | `1` generates the desktop theme without applying it |
 | `NO_BACKUP` | `0` | `1` skips the backup |
 | `BUILD_FROM_SOURCE` | `0` | `1` builds the wallpaper generator with `cargo` instead of downloading it |
@@ -33,7 +33,7 @@ Papirus icons.
 
 | Step | What it does |
 | --- | --- |
-| *(backup)* | copies `~/.config/cosmic`, `~/.bashrc` and Zed's `settings.json` to `~/.config/catppuccin-backup-<date>/`, and exports the current theme as `previous-theme.ron` |
+| *(backup)* | copies `~/.config/cosmic`, `~/.bashrc` and Zed's `settings.json` to `~/.config/catppuccin-backup-<date>/` |
 | `cosmic` | generates the desktop theme and applies it with `cosmic-settings appearance import` |
 | `terminal` | downloads the COSMIC Terminal scheme (import it by hand, see below) |
 | `bash` | installs the prompt and adds one marked block to `~/.bashrc` |
@@ -79,8 +79,7 @@ themes/generate.py --help
 
 ## Wallpapers
 
-Ten styles, rendered from the palette for any flavor and accent. Rows in
-the [preview](../wallpaper/previews.png) follow this order:
+Rows in the [preview](../wallpaper/previews.png) follow this order:
 
 | Style | |
 | --- | --- |
@@ -108,8 +107,7 @@ WALLPAPER_STYLE=all ./install.sh wallpaper
 Renders every style into `~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>/`
 and adds that folder to **Settings → Desktop → Wallpaper**, where you can
 pick one or turn on the slideshow. Your current background is left alone
-unless you also pass `WALLPAPER_ROTATE=30m`, which makes the folder a
-slideshow right away.
+unless `WALLPAPER_ROTATE` is set.
 
 ### Rendering by hand
 
@@ -131,5 +129,6 @@ ctp-wallpaper --help
 PURGE=1 ./uninstall.sh                 # also delete icons, themes and wallpapers
 ```
 
-To restore only the previous desktop theme:
+Each backup also holds the previous desktop theme, which can be restored
+on its own:
 `cosmic-settings appearance import ~/.config/catppuccin-backup-<date>/previous-theme.ron`.
