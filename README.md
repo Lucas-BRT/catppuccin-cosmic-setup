@@ -16,13 +16,17 @@ One-command [Catppuccin](https://catppuccin.com) setup for Pop!_OS 24.04
 ## Install
 
 ```bash
-git clone https://github.com/Lucas-BRT/catppuccin-cosmic-setup
-cd catppuccin-cosmic-setup
-./install.sh                            # Mocha with the Mauve accent
-FLAVOR=latte ACCENT=blue ./install.sh   # or any other combination
+curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/get.sh | bash
 ```
 
-Your settings are backed up first, and `./uninstall.sh` restores them.
+That installs Mocha with the Mauve accent. For another combination:
+
+```bash
+curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/get.sh | FLAVOR=latte ACCENT=blue bash
+```
+
+Your settings are backed up first, and
+`~/.local/share/catppuccin-cosmic-setup/current/uninstall.sh` restores them.
 Options, the one manual step (terminal colors) and wallpaper styles are in
 [docs/USAGE.md](docs/USAGE.md).
 

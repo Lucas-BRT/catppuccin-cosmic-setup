@@ -11,7 +11,8 @@
 #     backup already had it);
 #   * Papirus, downloaded themes and the wallpapers stay on disk but are no
 #     longer used. Run with PURGE=1 to delete them too (including the
-#     catppuccin-<flavor>-<accent>/ folders made by WALLPAPER_STYLE=all).
+#     catppuccin-<flavor>-<accent>/ folders made by WALLPAPER_STYLE=all and
+#     the copy of this setup that get.sh unpacked).
 # =============================================================================
 set -euo pipefail
 # shellcheck source=scripts/lib.sh
@@ -34,7 +35,8 @@ if [ "${PURGE:-0}" = 1 ]; then
     rm -rf "$ICONS_DIR/Papirus" "$ICONS_DIR/Papirus-Dark" "$DATA_DIR" \
            "$HOME/.config/catppuccin" "$CACHE_DIR" \
            "$HOME"/Pictures/Wallpapers/catppuccin-*.png \
-           "$HOME"/Pictures/Wallpapers/catppuccin-*/
+           "$HOME"/Pictures/Wallpapers/catppuccin-*/ \
+           "${XDG_DATA_HOME:-$HOME/.local/share}/catppuccin-cosmic-setup"   # get.sh installs
     ok "Downloaded files removed"
 fi
 echo "Log out and back in for everything to return to normal."

@@ -1,16 +1,17 @@
-name: Release ctp-wallpaper
+name: Release
 
-# To release a new ctp-wallpaper:
-#   1. bump the version in wallpaper/Cargo.toml and commit
-#   2. git tag wallpaper-vX.Y.Z && git push origin wallpaper-vX.Y.Z
-#      (this workflow builds static x86_64/aarch64 binaries and publishes
-#      them with a SHA256SUMS file)
-#   3. scripts/dev/pin-wallpaper-release.sh wallpaper-vX.Y.Z, then commit
-#      and push; until then the installer keeps the previously pinned release
+# To release:
+#   git tag vX.Y.Z && git push origin vX.Y.Z
+# This builds static ctp-wallpaper binaries (x86_64, aarch64), packages the
+# setup for each architecture with its binary inside, and publishes them
+# with get.sh and a SHA256SUMS file as the latest release, which is what
+#   curl -fsSL .../releases/latest/download/get.sh | bash
+# installs. Optionally run scripts/dev/pin-wallpaper-release.sh vX.Y.Z and
+# commit, so installs from a git clone use the new binaries too.
 
 on:
   push:
-    tags: ["wallpaper-v*"]
+    tags: ["v*"]
 
 permissions:
   contents: read
@@ -26,15 +27,6 @@ jobs:
           - { arch: aarch64, os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Tag matches Cargo.toml version
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          version=$(sed -n 's/^version = "\(.*\)"/\1/p' wallpaper/Cargo.toml | head -1)
-          [ "$TAG" = "wallpaper-v$version" ] || {
-            echo "::error::tag $TAG does not match wallpaper/Cargo.toml version $version"
-            exit 1
-          }
       - run: sudo apt-get update && sudo apt-get install -y musl-tools
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
@@ -47,17 +39,25 @@ jobs:
           cargo build --release --locked --target "$TARGET" --manifest-path wallpaper/Cargo.toml
           mkdir dist
           cp "wallpaper/target/$TARGET/release/ctp-wallpaper" "dist/ctp-wallpaper-$ARCH-linux"
-      - name: Smoke test
+      - name: Package
+        env:
+          ARCH: ${{ matrix.arch }}
+          TAG: ${{ github.ref_name }}
+        run: scripts/dev/package.sh "$TAG" "$ARCH" "dist/ctp-wallpaper-$ARCH-linux" dist
+      - name: Smoke test the package
         env:
           ARCH: ${{ matrix.arch }}
         run: |
-          bin="dist/ctp-wallpaper-$ARCH-linux"
-          file "$bin"
-          "$bin" --all "$RUNNER_TEMP/out" --flavor latte --accent teal
-          test "$(ls "$RUNNER_TEMP/out" | wc -l)" -eq "$("$bin" --list-styles | wc -l)"
+          mkdir "$RUNNER_TEMP/pkg"
+          tar -xzf "dist/catppuccin-cosmic-setup-$ARCH-linux.tar.gz" -C "$RUNNER_TEMP/pkg"
+          setup=$(echo "$RUNNER_TEMP"/pkg/catppuccin-cosmic-setup-*)
+          file "$setup/bin/ctp-wallpaper"
+          "$setup/bin/ctp-wallpaper" --all "$RUNNER_TEMP/out" --flavor latte --accent teal
+          test "$(ls "$RUNNER_TEMP/out" | wc -l)" -eq "$(grep -vc '^#' "$setup/wallpaper/styles.txt")"
+          "$setup/install.sh" --list
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ctp-wallpaper-${{ matrix.arch }}
+          name: release-${{ matrix.arch }}
           path: dist/
 
   release:
@@ -67,6 +67,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: dist
@@ -77,9 +78,14 @@ jobs:
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
+          cp get.sh dist/
           cd dist
-          sha256sum ctp-wallpaper-* > SHA256SUMS
+          sha256sum catppuccin-cosmic-setup-*.tar.gz ctp-wallpaper-* get.sh > SHA256SUMS
           cat SHA256SUMS
-          gh release create "$TAG" --repo "$REPO" --title "ctp-wallpaper ${TAG#wallpaper-v}" \
-            --notes "Static Linux builds of the wallpaper generator (x86_64 and aarch64). The installer downloads these and checks them against wallpaper/SHA256SUMS in the repository." \
-            ctp-wallpaper-* SHA256SUMS
+          gh release create "$TAG" --repo "$REPO" --title "$TAG" --latest \
+            --notes "Install with:
+
+          \`\`\`bash
+          curl -fsSL https://github.com/$REPO/releases/latest/download/get.sh | bash
+          \`\`\`" \
+            catppuccin-cosmic-setup-*.tar.gz ctp-wallpaper-* get.sh SHA256SUMS

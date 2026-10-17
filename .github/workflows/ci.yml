@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: ShellCheck
-        run: shellcheck -x install.sh uninstall.sh scripts/*.sh scripts/dev/*.sh
+        run: shellcheck -x get.sh install.sh uninstall.sh scripts/*.sh scripts/dev/*.sh
       - name: Generated COSMIC themes are up to date
         run: |
           python3 themes/generate.py --all "$RUNNER_TEMP/themes"

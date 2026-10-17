@@ -2,15 +2,25 @@
 
 ← [Back to README](../README.md)
 
-## Options
+## Running it
 
-Everything is set with environment variables, and steps can be run on
-their own:
+The [install command](../README.md#install) downloads the latest release
+into `~/.local/share/catppuccin-cosmic-setup/current/` and runs
+`install.sh` from there. Options are environment variables, and steps can
+be run on their own, either through the install command or directly:
 
 ```bash
+curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/get.sh | bash -s -- icons wallpaper
+
+cd ~/.local/share/catppuccin-cosmic-setup/current
 ./install.sh --list              # list the steps
-./install.sh icons wallpaper     # run only some steps
+FLAVOR=frappe ./install.sh bash  # rerun one step with another flavor
 ```
+
+From a git clone, `./install.sh` works the same; the wallpaper generator is
+then downloaded from the pinned release, or built with `cargo`.
+
+## Options
 
 | Variable | Default | |
 | --- | --- | --- |
@@ -123,10 +133,12 @@ ctp-wallpaper --help
 
 ## Uninstalling
 
+From `~/.local/share/catppuccin-cosmic-setup/current/` (or your clone):
+
 ```bash
 ./uninstall.sh                         # restore the last backup
 ./uninstall.sh ~/.config/catppuccin-backup-<date>
-PURGE=1 ./uninstall.sh                 # also delete icons, themes and wallpapers
+PURGE=1 ./uninstall.sh                 # also delete icons, themes, wallpapers and this setup
 ```
 
 Each backup also holds the previous desktop theme, which can be restored

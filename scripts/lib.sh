@@ -74,18 +74,21 @@ ok()   { printf '\e[38;2;166;227;161m ✓\e[0m %s\n' "$*"; }    # green
 warn() { printf '\e[38;2;249;226;175m !\e[0m %s\n' "$*"; }    # yellow
 todo() { printf '\e[38;2;203;166;247m ➜\e[0m %s\n' "$*"; }    # mauve
 
-# Clone a repository at an exact commit, downloading only that commit.
-# Skips the download when the cache is already at that commit.
+# Download a GitHub repository at an exact commit (as a tarball, so git is
+# not needed) into dest. Skips the download when dest already holds that
+# commit.
 fetch_pinned() {
-    local url=$1 rev=$2 dest=$3
-    if [ "$(git -C "$dest" rev-parse HEAD 2>/dev/null)" = "$rev" ]; then
+    local url=$1 rev=$2 dest=$3 slug
+    if [ "$(cat "$dest/.pinned-rev" 2>/dev/null)" = "$rev" ]; then
         return 0
     fi
+    slug=${url#https://github.com/}
+    slug=${slug%.git}
     rm -rf "$dest"
     mkdir -p "$dest"
-    git -C "$dest" init -q
-    git -C "$dest" fetch -q --depth 1 "$url" "$rev"
-    git -C "$dest" -c advice.detachedHead=false checkout -q FETCH_HEAD
+    curl -fsSL --proto '=https' --tlsv1.2 "https://codeload.github.com/$slug/tar.gz/$rev" |
+        tar -xz -C "$dest" --strip-components=1
+    printf '%s\n' "$rev" > "$dest/.pinned-rev"
 }
 
 # Write a cosmic-config key. Each key is a file holding one RON value.
@@ -99,17 +102,22 @@ cosmic_set() {
 strip_ron_comments() { sed -e 's#[[:space:]]*//.*$##' -e '/^[[:space:]]*$/d' "$1"; }
 
 # --- wallpaper generator binary ---------------------------------------------
-# ctp-wallpaper (wallpaper/, Rust) is published as a prebuilt static binary on
-# GitHub Releases. wallpaper/RELEASE names the release tag to use and
-# wallpaper/SHA256SUMS pins the hash of each binary, so a download is only
-# ever run if it matches what is committed in this repository.
+# ctp-wallpaper (wallpaper/, Rust). Release packages installed with get.sh
+# include it in bin/. In a git clone, the prebuilt binary is downloaded from
+# the release named in wallpaper/RELEASE and only run if it matches the hash
+# pinned in wallpaper/SHA256SUMS.
 GITHUB_REPO=Lucas-BRT/catppuccin-cosmic-setup
 
-# Set WALLPAPER_BIN to a usable ctp-wallpaper: the verified prebuilt binary
-# when one exists for this machine, otherwise a local build with cargo.
+# Set WALLPAPER_BIN to a usable ctp-wallpaper: the bundled one, else the
+# verified prebuilt binary for this machine, else a local build with cargo.
 # BUILD_FROM_SOURCE=1 always builds locally.
 wallpaper_bin() {
     local tag arch asset expected bin
+    # Release packages (get.sh) ship the binary for their architecture.
+    if [ -x "$REPO_DIR/bin/ctp-wallpaper" ] && [ "${BUILD_FROM_SOURCE:-0}" != 1 ]; then
+        WALLPAPER_BIN="$REPO_DIR/bin/ctp-wallpaper"
+        return 0
+    fi
     tag=$(cat "$REPO_DIR/wallpaper/RELEASE" 2>/dev/null || true)
     case "$(uname -m)" in
         x86_64 | amd64) arch=x86_64 ;;
