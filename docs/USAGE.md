@@ -31,6 +31,17 @@ FLAVOR=latte ACCENT=blue ctp-cosmic apply
 curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | bash -s -- bash wallpaper
 ```
 
+### Profiles
+
+```bash
+ctp-cosmic apply --flavor latte --accent blue --save day     # save after a successful run
+ctp-cosmic apply --profile day                               # use it (flags still win)
+ctp-cosmic profile list                                      # also: show, delete
+ctp-cosmic profile export day ~/dotfiles/day.ron             # and: profile import FILE [NAME]
+```
+
+Profiles live in `~/.config/catppuccin-cosmic-setup/profiles/`.
+
 ### Tab completion
 
 ```bash

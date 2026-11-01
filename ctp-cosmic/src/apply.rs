@@ -607,6 +607,8 @@ Usage:
   ctp-cosmic [apply]                  in a terminal: the interactive setup
   ctp-cosmic apply [STEP...] [OPTIONS]   no questions; every step but icons by default
   ctp-cosmic apply --last             repeat the last successful choices
+  ctp-cosmic apply --profile NAME     start from a saved profile (see `ctp-cosmic profile`)
+  ctp-cosmic apply ... --save NAME    save the choices as a profile after a successful run
   ctp-cosmic apply --list             list the steps
 
 Steps: cosmic, terminal, bash, zed, wallpaper, and icons (only when named).
@@ -641,7 +643,20 @@ fn interactive() -> bool {
     std::io::stdout().is_terminal() && fs::File::open("/dev/tty").is_ok()
 }
 
-pub fn main(args: Vec<String>) -> Result<u8, String> {
+/// Takes `flag VALUE` out of `args`.
+fn take_value(args: &mut Vec<String>, flag: &str) -> Result<Option<String>, String> {
+    let Some(i) = args.iter().position(|a| a == flag) else {
+        return Ok(None);
+    };
+    if i + 1 >= args.len() {
+        return Err(format!("{flag} needs a name"));
+    }
+    let value = args.remove(i + 1);
+    args.remove(i);
+    Ok(Some(value))
+}
+
+pub fn main(mut args: Vec<String>) -> Result<u8, String> {
     if args.iter().any(|a| a == "-h" || a == "--help") {
         print!("{USAGE}");
         return Ok(0);
@@ -657,11 +672,16 @@ pub fn main(args: Vec<String>) -> Result<u8, String> {
         }
         return Ok(0);
     }
-    let last = args
-        .iter()
-        .any(|a| a == "--last")
-        .then(load_state)
-        .transpose()?;
+    let save = take_value(&mut args, "--save")?;
+    let profile = take_value(&mut args, "--profile")?;
+    let wants_last = args.iter().any(|a| a == "--last");
+    if wants_last && profile.is_some() {
+        return Err("--last and --profile cannot be combined".into());
+    }
+    let last = match &profile {
+        Some(name) => Some(crate::profiles::load(name)?),
+        None => wants_last.then(load_state).transpose()?,
+    };
     let env = |k: &str| std::env::var(k).ok();
     let parsed = parse(&args, &env, last)?;
     if parsed.opts.dry_run {
@@ -676,6 +696,12 @@ pub fn main(args: Vec<String>) -> Result<u8, String> {
         return crate::tui::main(Vec::new());
     }
     run(&parsed.opts)?;
+    if let Some(name) = save {
+        crate::profiles::save(&name, &parsed.opts)?;
+        ui::ok(&format!(
+            "Saved as profile '{name}' (ctp-cosmic apply --profile {name})"
+        ));
+    }
     Ok(0)
 }
 

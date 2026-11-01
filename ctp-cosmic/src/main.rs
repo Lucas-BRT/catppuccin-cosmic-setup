@@ -15,6 +15,7 @@ mod image;
 mod nerdfont;
 mod noise;
 mod palette;
+mod profiles;
 mod prompt;
 mod steps;
 mod styles;
@@ -39,6 +40,7 @@ Usage:
   ctp-cosmic status ...                      is what the last apply chose still in place?
   ctp-cosmic doctor ...                      is everything apply needs on this machine?
   ctp-cosmic completions bash|zsh|fish       tab completion
+  ctp-cosmic profile ...                     named sets of choices (apply --save/--profile)
   ctp-cosmic update ...                      install the latest release
   ctp-cosmic uninstall ...                   undo the last apply
   ctp-cosmic theme ...                       desktop themes (COSMIC 1.10)
@@ -58,6 +60,7 @@ fn main() -> ExitCode {
     let rest: Vec<String> = args.collect();
     let result = match command.as_str() {
         "apply" => apply::main(rest),
+        "profile" => profiles::main(rest).map(|()| 0),
         "completions" => completions::main(rest).map(|()| 0),
         "doctor" => health::doctor(rest),
         "status" => health::status(rest),

@@ -4,8 +4,9 @@
 use crate::steps::{STEPS, rotate_labels};
 use crate::{palette, styles, theme};
 
-const COMMANDS: [&str; 17] = [
+const COMMANDS: [&str; 18] = [
     "apply",
+    "profile",
     "update",
     "uninstall",
     "status",
@@ -59,6 +60,8 @@ fn flags(command: &str) -> Vec<(&'static str, Vec<String>)> {
                 ("--install-font", list(crate::nerdfont::names())),
                 ("--font-size", vec![]),
                 ("--last", vec![]),
+                ("--profile", vec![]),
+                ("--save", vec![]),
                 ("--list", vec![]),
                 ("--dry-run", vec![]),
                 ("--no-apply", vec![]),
