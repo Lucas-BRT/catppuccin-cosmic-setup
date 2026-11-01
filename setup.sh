@@ -80,7 +80,11 @@ for s in "${selected[@]}"; do
     [ -n "${STEPS[$s]:-}" ] || { echo "Unknown step: $s (see --list)" >&2; exit 1; }
 done
 
-[ "${NO_BACKUP:-0}" = 1 ] || ./00-backup.sh
+if [ "${NO_BACKUP:-0}" != 1 ]; then
+    ./00-backup.sh
+    # Even if a step fails, record what changed so uninstall.sh can undo it.
+    trap 'ctp backup seal >/dev/null || warn "Could not record the changes; uninstall.sh cannot undo this run"' EXIT
+fi
 for s in "${ORDER[@]}"; do
     [[ " ${selected[*]} " == *" $s "* ]] && "./${STEPS[$s]}"
 done

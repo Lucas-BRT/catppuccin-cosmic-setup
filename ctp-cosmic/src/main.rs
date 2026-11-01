@@ -4,6 +4,7 @@
 //! (for the shell scripts), desktop themes in the COSMIC 1.10 format, and
 //! procedural wallpapers. Colors come from the official `catppuccin` crate.
 
+mod backup;
 mod folders;
 mod image;
 mod noise;
@@ -23,6 +24,7 @@ const USAGE: &str = "\
 ctp-cosmic: Catppuccin for the COSMIC desktop
 
 Usage:
+  ctp-cosmic backup ...                      back up and restore what the installer changes
   ctp-cosmic palette ...                     palette lookups for scripts
   ctp-cosmic theme ...                       desktop themes (COSMIC 1.10)
   ctp-cosmic wallpaper ...                   procedural wallpapers
@@ -42,6 +44,7 @@ fn main() -> ExitCode {
     let command = args.next().unwrap_or_default();
     let rest: Vec<String> = args.collect();
     let result = match command.as_str() {
+        "backup" => backup::main(rest).map(|()| 0),
         "palette" => palette::main(rest),
         "theme" => theme::main(rest).map(|()| 0),
         "wallpaper" => wallpaper::main(rest).map(|()| 0),

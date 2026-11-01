@@ -6,7 +6,9 @@
 #   ./uninstall.sh <dir>      # restore a specific backup
 #
 # What happens:
-#   * ~/.config/cosmic, ~/.bashrc and Zed's settings.json are restored;
+#   * the files the install changed in ~/.config/cosmic, ~/.bashrc and Zed's
+#     settings.json go back to what they were, unless you changed them since
+#     (those are kept and listed);
 #   * the "catppuccin-cosmic-setup" block is removed from ~/.bashrc (in case the
 #     backup already had it);
 #   * Papirus, downloaded themes and the wallpapers stay on disk but are no
@@ -22,12 +24,18 @@ backup="${1:-$(cat "$CACHE_DIR/last-backup" 2>/dev/null || true)}"
 [ -d "$backup" ] || { warn "Backup not found. Pass the directory: ./uninstall.sh ~/.config/catppuccin-backup-..."; exit 1; }
 
 info "Restoring $backup"
-if [ -d "$backup/cosmic" ]; then
-    rm -rf "$COSMIC_DIR"
-    cp -a "$backup/cosmic" "$COSMIC_DIR"
+if [ -d "$backup/before" ]; then
+    # Only the files the install changed, and only if they still hold what it left.
+    ctp backup restore "$backup"
+else
+    # Backup made by an older version: restore whole folders.
+    if [ -d "$backup/cosmic" ]; then
+        rm -rf "$COSMIC_DIR"
+        cp -a "$backup/cosmic" "$COSMIC_DIR"
+    fi
+    [ -f "$backup/.bashrc" ] && cp -a "$backup/.bashrc" "$HOME/.bashrc"
+    [ -f "$backup/settings.json" ] && cp -a "$backup/settings.json" "$HOME/.config/zed/settings.json"
 fi
-[ -f "$backup/.bashrc" ] && cp -a "$backup/.bashrc" "$HOME/.bashrc"
-[ -f "$backup/settings.json" ] && cp -a "$backup/settings.json" "$HOME/.config/zed/settings.json"
 ctp prompt remove
 ok "Settings restored"
 

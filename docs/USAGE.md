@@ -54,7 +54,7 @@ icons step, uses the light Papirus icons).
 
 | Step | What it does |
 | --- | --- |
-| *(backup)* | copies `~/.config/cosmic`, `~/.bashrc` and Zed's `settings.json` to `~/.config/catppuccin-backup-<date>/` |
+| *(backup)* | copies `~/.config/cosmic`, `~/.bashrc` and Zed's `settings.json` to `~/.config/catppuccin-backup-<date>/`; when the steps end it records which of those files changed |
 | `cosmic` | generates the desktop theme and applies it with `cosmic-settings appearance import`, keeping your interface density |
 | `terminal` | adds the Catppuccin color scheme to COSMIC Terminal and selects it |
 | `bash` | installs the prompt and adds one marked block to `~/.bashrc` |
@@ -153,10 +153,15 @@ ctp-cosmic wallpaper --help
 From `~/.local/share/catppuccin-cosmic-setup/current/` (or your clone):
 
 ```bash
-./uninstall.sh                         # restore the last backup
+./uninstall.sh                         # undo the last install
 ./uninstall.sh ~/.config/catppuccin-backup-<date>
 PURGE=1 ./uninstall.sh                 # also delete icons, themes, wallpapers and this setup
 ```
+
+Only the files the install changed go back, and only if they still hold
+what the install left: anything you or another app changed since is kept
+and listed. A backup that was not finished (the install was killed) or was
+made by an older version restores whole folders instead.
 
 Each backup also holds the previous desktop theme, which can be restored
 on its own:
