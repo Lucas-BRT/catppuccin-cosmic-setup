@@ -20,7 +20,9 @@ listed; --force restores them anyway). The prompt block is removed from
 ~/.bashrc.
 
 --only restores just those steps (cosmic, terminal, bash, zed, icons,
-wallpaper); run it again for the others.
+wallpaper); run it again for the others. `--only icons` also deletes the
+Papirus themes, and `--only fonts` deletes the Nerd Fonts that apply
+installed (nothing is restored for it).
 
 --purge also deletes the Papirus icons, generated themes, wallpapers named
 catppuccin-*, the cache, the saved choices and ctp-cosmic itself.
@@ -34,18 +36,17 @@ fn remove(path: &Path) {
     }
 }
 
+const ICON_THEMES: [&str; 4] = [
+    "Papirus",
+    "Papirus-Dark",
+    "Papirus-Catppuccin",
+    "Papirus-Dark-Catppuccin",
+];
+
 fn purge() -> Result<(), String> {
     let home = home()?;
     let icons = home.join(".local/share/icons");
-    let mut doomed: Vec<PathBuf> = [
-        "Papirus",
-        "Papirus-Dark",
-        "Papirus-Catppuccin",
-        "Papirus-Dark-Catppuccin",
-    ]
-    .iter()
-    .map(|t| icons.join(t))
-    .collect();
+    let mut doomed: Vec<PathBuf> = ICON_THEMES.iter().map(|t| icons.join(t)).collect();
     doomed.extend([
         home.join(".local/share/catppuccin"),
         home.join(".config/catppuccin"),
@@ -84,12 +85,18 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
         }
     }
     let mut paths: Vec<&str> = Vec::new();
+    let (mut fonts, mut icon_files) = (false, false);
     let mut with_prompt = only.is_none();
     if let Some(list) = &only {
         if purge_all {
             return Err("--only and --purge cannot be combined".into());
         }
         for name in list.split(',').map(str::trim) {
+            if name == "fonts" {
+                fonts = true;
+                continue;
+            }
+            icon_files |= name == "icons";
             let step = STEPS
                 .iter()
                 .find(|s| s.name == name)
@@ -99,21 +106,41 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
         }
     }
     let only_paths = only.is_some().then_some(paths.as_slice());
-    let (dir, restored, kept) =
-        backup::restore(dir.as_deref(), force, only_paths).map_err(|e| {
-            format!(
-                "{e}\nPass the backup folder: ctp-cosmic uninstall ~/.config/catppuccin-backup-..."
-            )
-        })?;
-    ui::info(&format!("Restoring {}", dir.display()));
-    ui::ok(&format!("{restored} files restored"));
-    for k in &kept {
-        ui::warn(&format!("Kept (changed since the install): ~/{k}"));
-    }
-    if with_prompt {
+    // `--only fonts` removes files only; there is nothing to restore.
+    if only.is_none() || !paths.is_empty() {
+        let (dir, restored, kept) = backup::restore(dir.as_deref(), force, only_paths)
+            .map_err(|e| {
+                format!(
+                    "{e}\nPass the backup folder: ctp-cosmic uninstall ~/.config/catppuccin-backup-..."
+                )
+            })?;
+        ui::info(&format!("Restoring {}", dir.display()));
+        ui::ok(&format!("{restored} files restored"));
+        for k in &kept {
+            ui::warn(&format!("Kept (changed since the install): ~/{k}"));
+        }
+        if with_prompt {
+            prompt::remove()?;
+        }
+        ui::ok("Settings restored");
+    } else if with_prompt {
         prompt::remove()?;
     }
-    ui::ok("Settings restored");
+    let home = home()?;
+    if fonts {
+        remove(&home.join(".local/share/fonts/NerdFonts"));
+        let _ = std::process::Command::new("fc-cache")
+            .arg("-f")
+            .stderr(std::process::Stdio::null())
+            .status();
+        ui::ok("Nerd Fonts removed");
+    }
+    if icon_files {
+        for t in ICON_THEMES {
+            remove(&home.join(".local/share/icons").join(t));
+        }
+        ui::ok("Papirus icons removed");
+    }
     if purge_all {
         purge()?;
     }

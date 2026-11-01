@@ -70,11 +70,11 @@ fn flags(command: &str) -> Vec<(&'static str, Vec<String>)> {
                 ("--no-backup", vec![]),
             ]
         }
-        "uninstall" => vec![
-            ("--only", steps()),
-            ("--force", vec![]),
-            ("--purge", vec![]),
-        ],
+        "uninstall" => {
+            let mut only = steps();
+            only.push("fonts".into());
+            vec![("--only", only), ("--force", vec![]), ("--purge", vec![])]
+        }
         "update" => vec![
             ("--check", vec![]),
             ("--force", vec![]),
