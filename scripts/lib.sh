@@ -28,23 +28,26 @@ warn() { printf '\e[38;2;249;226;175m !\e[0m %s\n' "$*"; }    # yellow
 todo() { printf '\e[38;2;203;166;247m ➜\e[0m %s\n' "$*"; }    # mauve
 
 # --- ctp-cosmic -----------------------------------------------------------
-# ctp-cosmic (ctp-cosmic/, Rust) does everything the scripts compute: palette
-# lookups, desktop themes and wallpapers. Release packages installed with
-# install.sh include it in bin/. In a git clone, the prebuilt binary is
-# downloaded from the release named in ctp-cosmic/RELEASE and only run if it
-# matches the hash pinned in ctp-cosmic/SHA256SUMS; without a pinned binary
-# for this machine, or with BUILD_FROM_SOURCE=1, it is built with cargo.
+# ctp-cosmic (ctp-cosmic/, Rust) does everything the scripts compute. Which
+# binary runs:
+#   * a git clone with cargo installed: built from the source in the clone
+#     (cargo only rebuilds what changed), so you always run your own code;
+#   * a release package (install.sh): the binary bundled in bin/;
+#   * a clone without cargo: the prebuilt binary from the release named in
+#     ctp-cosmic/RELEASE, only run if it matches the hash pinned in
+#     ctp-cosmic/SHA256SUMS.
+# BUILD_FROM_SOURCE=1 builds with cargo in every case.
 find_ctp() {
     local tag arch asset expected bin
-    if [ -x "$REPO_DIR/bin/ctp-cosmic" ] && [ "${BUILD_FROM_SOURCE:-0}" != 1 ]; then
-        CTP_BIN="$REPO_DIR/bin/ctp-cosmic"
-        return 0
-    fi
     if [ -d "$REPO_DIR/.git" ] && command -v cargo >/dev/null; then
         CTP_BIN="$CACHE_DIR/target/release/ctp-cosmic"
         [ -x "$CTP_BIN" ] || info "Building ctp-cosmic with cargo (first time takes a minute)"
         cargo build --release --locked --quiet \
             --manifest-path "$REPO_DIR/ctp-cosmic/Cargo.toml" --target-dir "$CACHE_DIR/target"
+        return 0
+    fi
+    if [ -x "$REPO_DIR/bin/ctp-cosmic" ] && [ "${BUILD_FROM_SOURCE:-0}" != 1 ]; then
+        CTP_BIN="$REPO_DIR/bin/ctp-cosmic"
         return 0
     fi
     tag=$(cat "$REPO_DIR/ctp-cosmic/RELEASE" 2>/dev/null || true)

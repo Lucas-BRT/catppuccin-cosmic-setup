@@ -26,9 +26,28 @@ cd ~/.local/share/catppuccin-cosmic-setup/current
 FLAVOR=frappe ./setup.sh bash  # rerun one step with another flavor
 ```
 
-From a git clone, `./setup.sh` works the same; `ctp-cosmic` (the Rust tool
-that generates themes and wallpapers) is then downloaded from the pinned
-release, or built with `cargo`.
+### From a git clone
+
+`./setup.sh` works the same and runs your own code: with `cargo` installed
+it builds `ctp-cosmic` from `ctp-cosmic/` (first time about a minute, then
+only what changed) into `~/.cache/catppuccin-cosmic-setup/target`. Without
+`cargo` it uses the release pinned in `ctp-cosmic/RELEASE`.
+
+```bash
+./setup.sh                     # interactive setup, or all default steps
+./setup.sh --list
+FLAVOR=latte ./setup.sh bash terminal
+./uninstall.sh
+
+# the Rust tool alone (no scripts), straight from the source
+cargo run --release --manifest-path ctp-cosmic/Cargo.toml -- theme --help
+cargo run --release --manifest-path ctp-cosmic/Cargo.toml -- tui --repo .
+cd ctp-cosmic && cargo test && cargo clippy --all-targets -- -D warnings
+```
+
+`ctp-cosmic` in `~/.local/bin` (put there by `install.sh`) is a separate
+copy: `ctp-cosmic tui` without `--repo` runs the setup unpacked in
+`~/.local/share/catppuccin-cosmic-setup/current`, not your clone.
 
 ## Options
 
