@@ -42,6 +42,7 @@ Options and wallpaper styles are in
 - **Papirus icons** with Catppuccin folders, only if you ask for them
   (COSMIC's own icons stay by default; see [docs/USAGE.md](docs/USAGE.md#icons-optional))
 - **Wallpapers** in 10 styles, also available in COSMIC's wallpaper picker
+- **GTK and Flatpak apps** (optional) following the COSMIC theme
 - **Zed** theme and icon configuration (preserves your settings.json comments)
 
 ## Credits

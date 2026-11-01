@@ -9,6 +9,7 @@ mod background;
 mod backup;
 mod completions;
 mod folders;
+mod gtk;
 mod health;
 mod icons;
 mod image;

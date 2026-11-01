@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::palette::{self, Palette};
 use crate::steps::{self, STEPS};
 use crate::{
-    background, backup, folders, icons, prompt, styles, terminal, theme, ui, wallpaper, zed,
+    background, backup, folders, gtk, icons, prompt, styles, terminal, theme, ui, wallpaper, zed,
 };
 
 const PAPIRUS: (&str, &str) = (
@@ -525,6 +525,68 @@ fn step_zed(o: &Opts) -> Result<(), String> {
     Ok(())
 }
 
+fn step_gtk(o: &Opts) -> Result<(), String> {
+    let home = home()?;
+    let p = Palette::new(&o.flavor).ok_or("unknown flavor")?;
+    let name = format!("Catppuccin {}", p.name());
+    ui::info("GTK and Flatpak apps");
+
+    // COSMIC writes the sheets and links gtk.css to them when the theme is
+    // applied; only fill in a link that is missing altogether.
+    let sheet = gtk::sheet(&home, &p);
+    match gtk::css_state(&sheet, &p) {
+        gtk::Css::Follows => ui::ok(&format!("GTK apps: COSMIC's style sheet follows {name}")),
+        gtk::Css::Other => ui::warn(&format!(
+            "COSMIC's GTK style sheet does not follow {name} yet; it is rewritten when the theme is applied (cosmic step)"
+        )),
+        gtk::Css::Missing => ui::warn(
+            "COSMIC has not written its GTK style sheet yet; apply the desktop theme (cosmic step) first",
+        ),
+    }
+    if sheet.is_file() {
+        for v in ["gtk-3.0", "gtk-4.0"] {
+            let link = home.join(format!(".config/{v}/gtk.css"));
+            if fs::symlink_metadata(&link).is_err() {
+                fs::create_dir_all(link.parent().unwrap()).map_err(|e| e.to_string())?;
+                std::os::unix::fs::symlink(&sheet, &link)
+                    .map_err(|e| format!("{}: {e}", link.display()))?;
+                ui::ok(&format!("{v}/gtk.css now follows COSMIC's sheet"));
+            }
+        }
+    }
+
+    if !which(&home, &["flatpak"]) {
+        ui::warn("flatpak not found, skipping Flatpak apps");
+        return Ok(());
+    }
+    let flatpak = |args: &[&str]| {
+        Command::new("flatpak")
+            .args(args)
+            .stderr(Stdio::null())
+            .output()
+            .map_err(|e| format!("flatpak: {e}"))
+    };
+    let shown = flatpak(&["override", "--user", "--show"])?;
+    let shown = String::from_utf8_lossy(&shown.stdout);
+    let missing = gtk::missing_shares(&shown);
+    for share in gtk::FLATPAK_SHARES {
+        if missing.contains(&share) {
+            let out = flatpak(&["override", "--user", &format!("--filesystem={share}")])?;
+            if !out.status.success() {
+                return Err(format!("flatpak override for {share} failed"));
+            }
+            ui::ok(&format!("Flatpak apps can now read {share}"));
+        } else {
+            ui::ok(&format!("Flatpak apps already read {share}"));
+        }
+    }
+    let runtimes = flatpak(&["list", "--runtime"])?;
+    if !String::from_utf8_lossy(&runtimes.stdout).contains("org.gtk.Gtk3theme.adw-gtk3") {
+        ui::todo("For GTK 3 Flatpak apps: flatpak install flathub org.gtk.Gtk3theme.adw-gtk3-dark");
+    }
+    Ok(())
+}
+
 fn step_icons(o: &Opts) -> Result<(), String> {
     let home = home()?;
     let cache = cache_dir()?;
@@ -648,6 +710,7 @@ pub fn plan(o: &Opts) -> Vec<String> {
             ),
             "bash" => "bash: write ~/.config/catppuccin/catppuccin-prompt.bash and add a marked block to ~/.bashrc".into(),
             "zed" => format!("zed: set theme and icon_theme to Catppuccin {name} in ~/.config/zed/settings.json (skipped if Zed is not installed)"),
+            "gtk" => "gtk: check that COSMIC's GTK style sheet follows the theme, and let Flatpak apps read it (flatpak override --user, if Flatpak is installed)".to_string(),
             "icons" => format!("icons: download Papirus and the Catppuccin folders (pinned), install them in ~/.local/share/icons with cat-{}-{} folders, select the theme in COSMIC", o.flavor, o.accent),
             "wallpaper" if o.style == "all" => format!("wallpaper: render every style into ~/Pictures/Wallpapers/catppuccin-{}-{}, add the folder to Settings → Wallpaper{}", o.flavor, o.accent, o.rotate.as_ref().map(|r| format!(", slideshow every {r}")).unwrap_or_default()),
             "wallpaper" => format!("wallpaper: render the {} style into ~/Pictures/Wallpapers and set it as the background", o.style),
@@ -674,6 +737,7 @@ pub fn run(o: &Opts, partial: bool) -> Result<(), String> {
             "bash" => step_bash(o),
             "zed" => step_zed(o),
             "icons" => step_icons(o),
+            "gtk" => step_gtk(o),
             "wallpaper" => step_wallpaper(o),
             other => Err(format!("unknown step '{other}'")),
         });
@@ -703,7 +767,7 @@ Usage:
   ctp-cosmic apply ... --save NAME    save the choices as a profile after a successful run
   ctp-cosmic apply --list             list the steps
 
-Steps: cosmic, terminal, bash, zed, wallpaper, and icons (only when named).
+Steps: cosmic, terminal, bash, zed, wallpaper, and icons and gtk (only when named).
 
 Options (each also an environment variable; flags win):
   --flavor NAME            FLAVOR            latte, frappe, macchiato, mocha (mocha)

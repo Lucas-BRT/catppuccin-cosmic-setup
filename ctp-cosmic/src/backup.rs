@@ -28,7 +28,12 @@ DIR defaults, for restore, to the last backup that changed something.
 ";
 
 /// What the installer may touch, relative to $HOME.
-const WATCHED: [&str; 3] = [".config/cosmic", ".bashrc", ".config/zed/settings.json"];
+const WATCHED: [&str; 4] = [
+    ".config/cosmic",
+    ".bashrc",
+    ".config/zed/settings.json",
+    ".local/share/flatpak/overrides",
+];
 
 fn home() -> Result<PathBuf, String> {
     std::env::var_os("HOME")

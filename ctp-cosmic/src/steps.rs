@@ -13,7 +13,7 @@ pub struct Step {
 }
 
 /// In installer order.
-pub const STEPS: [Step; 6] = [
+pub const STEPS: [Step; 7] = [
     Step {
         name: "cosmic",
         label: "Desktop theme",
@@ -52,6 +52,12 @@ pub const STEPS: [Step; 6] = [
             ".config/cosmic/com.system76.CosmicBackground/",
             ".config/cosmic/com.system76.CosmicSettings.Wallpaper/",
         ],
+    },
+    Step {
+        name: "gtk",
+        label: "GTK and Flatpak apps (optional)",
+        optional: true,
+        paths: &[".local/share/flatpak/overrides/"],
     },
 ];
 

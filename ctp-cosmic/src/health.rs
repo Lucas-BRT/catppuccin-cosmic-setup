@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::apply::{Opts, home, load_state, which};
 use crate::palette::Palette;
 use crate::ui;
-use crate::{icons, prompt, terminal, zed};
+use crate::{gtk, icons, prompt, terminal, zed};
 
 const DOCTOR_USAGE: &str = "\
 ctp-cosmic doctor: check that what apply needs is on this machine
@@ -213,6 +213,22 @@ pub fn check(o: &Opts, home: &Path) -> Vec<Line> {
                 // Without COSMIC's own icons the step selects plain Papirus.
                 let ok = now.contains(want) || now.contains(want.trim_end_matches("-Catppuccin"));
                 line(ok, format!("icons: {want}"))
+            }
+            "gtk" => {
+                let follows = gtk::css_state(&gtk::sheet(home, &p), &p) == gtk::Css::Follows;
+                let shares = if which(home, &["flatpak"]) {
+                    std::process::Command::new("flatpak")
+                        .args(["override", "--user", "--show"])
+                        .output()
+                        .map(|o| gtk::missing_shares(&String::from_utf8_lossy(&o.stdout)))
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+                line(
+                    follows && shares.is_empty(),
+                    format!("GTK and Flatpak apps: {name}"),
+                )
             }
             "wallpaper" => {
                 let all = read(&cosmic.join("com.system76.CosmicBackground/v1/all"));

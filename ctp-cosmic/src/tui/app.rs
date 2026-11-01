@@ -391,7 +391,7 @@ impl Progress {
 
     /// Which step an `apply` "==> ..." header starts.
     fn step_for_header(header: &str) -> Option<&'static str> {
-        let rules: [(&str, &str); 7] = [
+        let rules: [(&str, &str); 8] = [
             ("Backing up", "backup"),
             ("COSMIC theme", "cosmic"),
             ("COSMIC Terminal", "terminal"),
@@ -399,6 +399,7 @@ impl Progress {
             ("Zed", "zed"),
             ("Wallpaper", "wallpaper"),
             ("Papirus", "icons"),
+            ("GTK", "gtk"),
         ];
         rules
             .iter()
@@ -585,7 +586,7 @@ mod tests {
     #[test]
     fn progress_follows_install_output() {
         let cfg = Config {
-            steps: [true, true, false, false, false, true],
+            steps: [true, true, false, false, false, true, false],
             ..Config::default()
         };
         let mut p = Progress::new(&cfg, true);

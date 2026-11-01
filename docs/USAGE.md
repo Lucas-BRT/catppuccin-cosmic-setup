@@ -105,6 +105,7 @@ icons step, uses the light Papirus icons).
 | `zed` | applies Catppuccin theme and icons to Zed (`~/.config/zed/settings.json`) |
 | `icons` | **optional**, see [Icons](#icons-optional) |
 | `wallpaper` | renders a wallpaper and sets it as the background |
+| `gtk` | **optional**, see [GTK and Flatpak apps](#gtk-and-flatpak-apps-optional) |
 
 ### Terminal
 
@@ -112,6 +113,25 @@ The scheme is written to COSMIC Terminal's own config, next to any schemes
 you added yourself; open **View → Color schemes…** to pick another. The scheme has no
 background of its own, so the terminal follows the desktop theme (and
 Frosted Glass).
+
+### GTK and Flatpak apps (optional)
+
+COSMIC itself writes style sheets for GTK 3 and 4 apps from the desktop theme
+(`~/.config/gtk-4.0/cosmic/dark.css` and `light.css`, linked from both
+`gtk.css` files), so once the `cosmic` step has applied the Catppuccin theme,
+regular GTK apps follow its colors and accent. The `gtk` step checks that, and
+makes sure sandboxed Flatpak apps can read those sheets
+(`flatpak override --user --filesystem=xdg-config/gtk-3.0:ro` and the same for
+`gtk-4.0`). It does not install anything: for GTK 3 Flatpak apps it prints the
+`flatpak install` line for the adw-gtk3 theme if that is missing.
+
+```bash
+ctp-cosmic apply gtk
+ctp-cosmic uninstall --only gtk     # takes the Flatpak overrides back
+```
+
+One thing is COSMIC's, not ours: the sheet uses pure white for text, not
+Catppuccin's Text color.
 
 ### Icons (optional)
 
