@@ -45,10 +45,12 @@ Profiles live in `~/.config/catppuccin-cosmic-setup/profiles/`.
 ### Tab completion
 
 ```bash
-ctp-cosmic completions bash > ~/.local/share/bash-completion/completions/ctp-cosmic
-ctp-cosmic completions zsh  > ~/.zfunc/_ctp-cosmic   # with ~/.zfunc in $fpath
-ctp-cosmic completions fish > ~/.config/fish/completions/ctp-cosmic.fish
+ctp-cosmic completions install          # for your $SHELL (bash, zsh or fish)
 ```
+
+It writes the script where the shell loads user completions from. Do not
+redirect `completions bash` into `~/.bashrc`: the shell empties the file
+before the program runs.
 
 Commands, flags and their values (flavors, accents, styles, steps) complete.
 

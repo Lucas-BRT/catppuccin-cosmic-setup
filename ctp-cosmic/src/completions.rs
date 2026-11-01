@@ -181,15 +181,54 @@ const USAGE: &str = "\
 ctp-cosmic completions: tab completion for your shell
 
 Usage:
-  ctp-cosmic completions bash|zsh|fish
+  ctp-cosmic completions install [bash|zsh|fish]   write it where the shell looks
+                                                   (default: your $SHELL)
+  ctp-cosmic completions bash|zsh|fish             print it
+
+Never redirect the printed script into ~/.bashrc or another startup file: the
+shell empties the file before ctp-cosmic runs. Use `install` instead.
 
   bash:  ctp-cosmic completions bash > ~/.local/share/bash-completion/completions/ctp-cosmic
   zsh:   ctp-cosmic completions zsh  > ~/.zfunc/_ctp-cosmic   (with ~/.zfunc in $fpath)
   fish:  ctp-cosmic completions fish > ~/.config/fish/completions/ctp-cosmic.fish
 ";
 
+/// Where each shell loads user completions from, relative to $HOME.
+fn target(shell: &str) -> Option<&'static str> {
+    match shell {
+        "bash" => Some(".local/share/bash-completion/completions/ctp-cosmic"),
+        "zsh" => Some(".zfunc/_ctp-cosmic"),
+        "fish" => Some(".config/fish/completions/ctp-cosmic.fish"),
+        _ => None,
+    }
+}
+
+fn install(shell: Option<&str>) -> Result<(), String> {
+    let from_env = std::env::var("SHELL").unwrap_or_default();
+    let shell = shell.unwrap_or_else(|| from_env.rsplit('/').next().unwrap_or(""));
+    let rel = target(shell).ok_or_else(|| {
+        format!("don't know where {shell:?} keeps completions; use bash, zsh or fish")
+    })?;
+    let file = crate::apply::home()?.join(rel);
+    let script = match shell {
+        "bash" => bash(),
+        "zsh" => zsh(),
+        _ => fish(),
+    };
+    std::fs::create_dir_all(file.parent().unwrap()).map_err(|e| e.to_string())?;
+    std::fs::write(&file, script).map_err(|e| format!("{}: {e}", file.display()))?;
+    println!("Installed {}", file.display());
+    if shell == "zsh" {
+        println!("Make sure ~/.zfunc is in your fpath (fpath=(~/.zfunc $fpath)) before compinit.");
+    }
+    println!("Open a new terminal to use it.");
+    Ok(())
+}
+
 pub fn main(args: Vec<String>) -> Result<(), String> {
     match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
+        ["install"] => install(None)?,
+        ["install", shell] => install(Some(shell))?,
         ["bash"] => print!("{}", bash()),
         ["zsh"] => print!("{}", zsh()),
         ["fish"] => print!("{}", fish()),
@@ -228,6 +267,16 @@ mod tests {
         for cmd in COMMANDS {
             assert!(main_rs.contains(&format!("\"{cmd}\" =>")), "{cmd}");
         }
+    }
+
+    #[test]
+    fn install_targets_are_completion_folders_not_startup_files() {
+        for shell in ["bash", "zsh", "fish"] {
+            let t = target(shell).unwrap();
+            assert!(t.contains("ctp-cosmic"), "{t}");
+            assert!(!t.ends_with("rc"), "{t}");
+        }
+        assert!(target("nu").is_none());
     }
 
     #[test]
