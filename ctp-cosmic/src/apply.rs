@@ -47,6 +47,8 @@ pub struct Opts {
     pub alpha_offset: f64,
     /// A wallpaper style, or "all".
     pub style: String,
+    /// Your own PNG, recolored with the flavor and used instead of a style.
+    pub wallpaper_image: Option<String>,
     pub rotate: Option<String>,
     pub font: Option<String>,
     pub font_size: Option<u16>,
@@ -74,6 +76,7 @@ impl Default for Opts {
             frost_on: None,
             alpha_offset: 0.0,
             style: "glow".into(),
+            wallpaper_image: None,
             rotate: None,
             font: None,
             font_size: None,
@@ -97,7 +100,7 @@ pub struct Parsed {
 }
 
 /// (environment variable, flag name) of every option that takes a value.
-const KEYS: [(&str, &str); 14] = [
+const KEYS: [(&str, &str); 15] = [
     ("FLAVOR", "flavor"),
     ("ACCENT", "accent"),
     ("FROSTED", "frosted"),
@@ -109,6 +112,7 @@ const KEYS: [(&str, &str); 14] = [
     ("WINDOW_HINT", "window-hint"),
     ("WALLPAPER_STYLE", "wallpaper-style"),
     ("WALLPAPER_ROTATE", "wallpaper-rotate"),
+    ("WALLPAPER_IMAGE", "wallpaper-image"),
     ("TERMINAL_FONT", "font"),
     ("TERMINAL_FONT_SIZE", "font-size"),
     ("INSTALL_FONT", "install-font"),
@@ -136,6 +140,7 @@ fn set(o: &mut Opts, key: &str, v: &str) -> Result<(), String> {
                 .map_err(|_| format!("invalid alpha offset '{v}'"))?
         }
         "wallpaper-style" => o.style = v.into(),
+        "wallpaper-image" => o.wallpaper_image = Some(v.into()),
         "wallpaper-rotate" => o.rotate = Some(v.into()),
         "font" => o.font = Some(v.into()),
         "font-size" => {
@@ -209,6 +214,14 @@ pub fn validate(o: &Opts) -> Result<(), String> {
             o.style,
             names.join(", ")
         ));
+    }
+    if let Some(img) = &o.wallpaper_image {
+        if o.style == "all" {
+            return Err("--wallpaper-image replaces a wallpaper style; it cannot be combined with style 'all'".into());
+        }
+        if !Path::new(img).is_file() {
+            return Err(format!("{img}: no such image (a PNG is needed)"));
+        }
     }
     if let Some(r) = &o.rotate {
         steps::rotate_seconds(r)?;
@@ -476,6 +489,22 @@ fn step_wallpaper(o: &Opts) -> Result<(), String> {
     let home = home()?;
     let config = home.join(".config/cosmic");
     let pictures = home.join("Pictures/Wallpapers");
+    if let Some(img) = &o.wallpaper_image {
+        ui::info(&format!(
+            "Wallpaper ({}, {} accent, your image)",
+            o.flavor, o.accent
+        ));
+        let stem = Path::new(img)
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy();
+        let file = pictures.join(format!("catppuccin-{}-{}-{stem}.png", o.flavor, o.accent));
+        fs::create_dir_all(&pictures).map_err(|e| format!("{}: {e}", pictures.display()))?;
+        wallpaper::recolor(Path::new(img), &file, &o.flavor, 40.0)?;
+        background::set(&config, &file.display().to_string(), None)?;
+        ui::ok(&format!("Background: {}", file.display()));
+        return Ok(());
+    }
     if o.style != "all" {
         ui::info(&format!(
             "Wallpaper ({}, {} accent, {})",
@@ -627,6 +656,8 @@ Options (each also an environment variable; flags win):
   --window-hint NAME       WINDOW_HINT       its color: any accent (default: the accent)
   --wallpaper-style NAME   WALLPAPER_STYLE   glow, waves, ... or all (see `wallpaper --help`)
   --wallpaper-rotate T     WALLPAPER_ROTATE   with style all: 5m 10m 15m 30m 1h 2h
+  --wallpaper-image FILE   WALLPAPER_IMAGE    your own PNG, recolored with the flavor,
+                                             instead of a style
   --font NAME              TERMINAL_FONT      COSMIC Terminal font (`terminal font list`)
   --install-font NAME      INSTALL_FONT       download a Nerd Font (JetBrainsMono, FiraCode, Hack)
                                              and use it as the terminal font
@@ -771,6 +802,7 @@ mod tests {
             args(&["nosuchstep"]),
             args(&["--wat", "1"]),
             args(&["--install-font"]),
+            args(&["--wallpaper-image", "/nonexistent/x.png"]),
             args(&["--flavor"]),
         ] {
             assert!(parse(&bad, &no_env, None).is_err(), "{bad:?}");

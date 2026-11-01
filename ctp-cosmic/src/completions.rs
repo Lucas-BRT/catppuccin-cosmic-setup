@@ -56,6 +56,7 @@ fn flags(command: &str) -> Vec<(&'static str, Vec<String>)> {
                 ("--window-hint", list(palette::accents())),
                 ("--wallpaper-style", styles),
                 ("--wallpaper-rotate", list(rotate_labels())),
+                ("--wallpaper-image", vec![]),
                 ("--font", vec![]),
                 ("--install-font", list(crate::nerdfont::names())),
                 ("--font-size", vec![]),

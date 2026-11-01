@@ -25,6 +25,14 @@ impl Palette {
             .map(|flavor| Self { flavor })
     }
 
+    /// Every color of the flavor.
+    pub fn all(&self) -> Vec<Rgb> {
+        self.flavor
+            .iter()
+            .map(|c| [f64::from(c.rgb.r), f64::from(c.rgb.g), f64::from(c.rgb.b)])
+            .collect()
+    }
+
     pub fn is_dark(&self) -> bool {
         self.flavor.dark
     }

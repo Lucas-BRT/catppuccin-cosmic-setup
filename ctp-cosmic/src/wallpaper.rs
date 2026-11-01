@@ -21,6 +21,9 @@ Usage:
   ctp-cosmic wallpaper --preview OUTPUT.png [--accent A] [--thumb WxH]
                                               grid of every style (rows) in every
                                               flavor (columns), for the README
+  ctp-cosmic wallpaper recolor IN.png OUT.png [--flavor NAME] [--sigma N]
+                                              your own PNG, pulled toward the flavor's
+                                              colors (sigma 40; lower snaps harder)
   ctp-cosmic wallpaper --list-styles          style names, one per line
   ctp-cosmic wallpaper --describe-styles      style names with a description
 
@@ -210,7 +213,73 @@ pub fn render_all(
     })
 }
 
+/// Pulls every pixel toward the flavor's colors: each output is the average of
+/// the palette weighted by how close it is to the input (Gaussian, width
+/// `sigma` in 0..255 RGB units). A small sigma snaps to the nearest color
+/// (posterized); a large one washes everything toward the average.
+pub fn recolor_pixels(rgb: &mut [u8], palette: &[[f64; 3]], sigma: f64) {
+    let k = 1.0 / (2.0 * sigma * sigma);
+    let pal: Vec<[f32; 3]> = palette
+        .iter()
+        .map(|c| [c[0] as f32, c[1] as f32, c[2] as f32])
+        .collect();
+    rgb.par_chunks_mut(3 * 4096).for_each(|chunk| {
+        let mut d2 = vec![0f32; pal.len()];
+        for px in chunk.as_chunks_mut::<3>().0.iter_mut() {
+            let p = [f32::from(px[0]), f32::from(px[1]), f32::from(px[2])];
+            let mut min = f32::MAX;
+            for (d, c) in d2.iter_mut().zip(&pal) {
+                *d = (0..3).map(|i| (p[i] - c[i]).powi(2)).sum();
+                min = min.min(*d);
+            }
+            let (mut sum, mut acc) = (0f32, [0f32; 3]);
+            for (d, c) in d2.iter().zip(&pal) {
+                // Relative to the nearest color, so far-off pixels still get a weight.
+                let w = (-(d - min) * k as f32).exp();
+                sum += w;
+                (0..3).for_each(|i| acc[i] += w * c[i]);
+            }
+            (0..3).for_each(|i| px[i] = (acc[i] / sum).round().clamp(0.0, 255.0) as u8);
+        }
+    });
+}
+
+/// Recolors a PNG with a flavor's palette.
+pub fn recolor(input: &Path, output: &Path, flavor: &str, sigma: f64) -> Result<(), String> {
+    let p = Palette::new(flavor).ok_or_else(|| format!("unknown flavor '{flavor}'"))?;
+    let (w, h, mut rgb) = image::read_png(input)?;
+    recolor_pixels(&mut rgb, &p.all(), sigma);
+    image::write_png(output, w, h, &rgb)
+}
+
+fn recolor_main(args: &[String]) -> Result<(), String> {
+    let (mut flavor, mut sigma) = ("mocha".to_string(), 40.0);
+    let mut paths = Vec::new();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--flavor" => flavor = it.next().ok_or("--flavor needs a value")?.clone(),
+            "--sigma" => {
+                let v = it.next().ok_or("--sigma needs a value")?;
+                sigma = v.parse().map_err(|_| format!("bad --sigma '{v}'"))?;
+                if sigma <= 0.0 {
+                    return Err("--sigma must be above 0".into());
+                }
+            }
+            p if !p.starts_with("--") => paths.push(PathBuf::from(p)),
+            other => return Err(format!("unexpected argument '{other}'\n\n{USAGE}")),
+        }
+    }
+    match paths.as_slice() {
+        [input, output] => recolor(input, output, &flavor, sigma),
+        _ => Err(format!("recolor needs INPUT.png and OUTPUT.png\n\n{USAGE}")),
+    }
+}
+
 pub fn main(args: Vec<String>) -> Result<(), String> {
+    if args.first().map(String::as_str) == Some("recolor") {
+        return recolor_main(&args[1..]);
+    }
     match parse_args(args)? {
         Some(a) => run(&a),
         None => Ok(()),
@@ -234,6 +303,43 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn recolor_lands_on_the_palette_and_keeps_order() {
+        let p = Palette::new("mocha").unwrap().all();
+        // A pixel that is exactly a palette color stays (almost) itself.
+        let target = p[5];
+        let mut px = vec![target[0] as u8, target[1] as u8, target[2] as u8];
+        recolor_pixels(&mut px, &p, 12.0);
+        for i in 0..3 {
+            assert!(
+                (f64::from(px[i]) - target[i]).abs() <= 6.0,
+                "{px:?} vs {target:?}"
+            );
+        }
+        // Dark stays darker than light, whatever the sigma.
+        let mut two = vec![10, 10, 10, 245, 245, 245];
+        recolor_pixels(&mut two, &p, 40.0);
+        assert!(two[0] < two[3]);
+        // Far from every color still gives a valid pixel (no NaN).
+        let mut far = vec![255, 0, 255];
+        recolor_pixels(&mut far, &p, 1.0);
+        assert!(far.iter().any(|&v| v > 0));
+    }
+
+    #[test]
+    fn recolor_round_trips_a_png() {
+        let dir = std::env::temp_dir().join(format!("ctp-rc-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (input, output) = (dir.join("in.png"), dir.join("out.png"));
+        let rgb: Vec<u8> = (0..16 * 9 * 3).map(|i| (i * 7 % 256) as u8).collect();
+        image::write_png(&input, 16, 9, &rgb).unwrap();
+        recolor(&input, &output, "latte", 40.0).unwrap();
+        let (w, h, out) = image::read_png(&output).unwrap();
+        assert_eq!((w, h, out.len()), (16, 9, 16 * 9 * 3));
+        assert!(recolor(&dir.join("missing.png"), &output, "latte", 40.0).is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
