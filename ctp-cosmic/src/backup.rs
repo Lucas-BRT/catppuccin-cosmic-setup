@@ -20,6 +20,8 @@ Usage:
                                            if nothing changed)
   ctp-cosmic backup restore [DIR] [--force]  undo it; --force also restores files
                                            changed since
+  ctp-cosmic backup prune [--keep N] [--dry-run]   delete old backups, keeping the
+                                           newest N (default 5) and the last one
   ctp-cosmic backup path                   the last backup's folder
 
 DIR defaults, for restore, to the last backup that changed something.
@@ -129,7 +131,12 @@ fn seal_in(home: &Path, dir: &Path, watched: &[&str]) -> Result<Vec<String>, Str
 }
 
 /// Returns (restored, kept because changed since).
-fn restore_in(home: &Path, dir: &Path, force: bool) -> Result<(usize, Vec<String>), String> {
+fn restore_in(
+    home: &Path,
+    dir: &Path,
+    force: bool,
+    only: Option<&[&str]>,
+) -> Result<(usize, Vec<String>), String> {
     let manifest = dir.join("manifest");
     let text = fs::read_to_string(&manifest).map_err(|_| {
         format!(
@@ -141,6 +148,9 @@ fn restore_in(home: &Path, dir: &Path, force: bool) -> Result<(usize, Vec<String
     let (mut restored, mut kept) = (0, Vec::new());
     for line in text.lines().filter(|l| !l.is_empty()) {
         let (tag, rel) = line.split_once(' ').ok_or("bad manifest")?;
+        if only.is_some_and(|ps| !ps.iter().any(|p| rel.starts_with(p))) {
+            continue;
+        }
         let cur = home.join(rel);
         // Still what the installer left (or gone), so nothing of yours is lost.
         let untouched = match tag {
@@ -190,14 +200,56 @@ pub fn seal(dir: &Path) -> Result<usize, String> {
 
 /// Undoes the install recorded in `dir` (default: the last backup). Returns
 /// the folder, how many files were restored and which were kept.
-pub fn restore(dir: Option<&Path>, force: bool) -> Result<(PathBuf, usize, Vec<String>), String> {
+pub fn restore(
+    dir: Option<&Path>,
+    force: bool,
+    only: Option<&[&str]>,
+) -> Result<(PathBuf, usize, Vec<String>), String> {
     let home = home()?;
     let dir = match dir {
         Some(d) => d.to_path_buf(),
         None => last(&home)?,
     };
-    let (n, kept) = restore_in(&home, &dir, force)?;
+    let (n, kept) = restore_in(&home, &dir, force, only)?;
     Ok((dir, n, kept))
+}
+
+/// Which of `names` (backup folder names) to delete: all but the newest
+/// `keep`, and never `last` (the one `restore` would use).
+fn to_prune(mut names: Vec<String>, keep: usize, last: Option<&str>) -> Vec<String> {
+    // Names embed the timestamp, so sorting by name sorts by age.
+    names.sort_unstable_by(|a, b| b.cmp(a));
+    names
+        .into_iter()
+        .skip(keep)
+        .filter(|n| Some(n.as_str()) != last)
+        .collect()
+}
+
+/// Deletes old backups (or, with `dry_run`, only returns them).
+pub fn prune(keep: usize, dry_run: bool) -> Result<Vec<PathBuf>, String> {
+    let home = home()?;
+    let config = home.join(".config");
+    let names: Vec<String> = io(fs::read_dir(&config), &config)?
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.starts_with("catppuccin-backup-"))
+        .collect();
+    let last = last(&home).ok();
+    let last_name = last
+        .as_deref()
+        .and_then(Path::file_name)
+        .map(|n| n.to_string_lossy().into_owned());
+    let doomed: Vec<PathBuf> = to_prune(names, keep, last_name.as_deref())
+        .into_iter()
+        .map(|n| config.join(n))
+        .collect();
+    if !dry_run {
+        for d in &doomed {
+            io(fs::remove_dir_all(d), d)?;
+        }
+    }
+    Ok(doomed)
 }
 
 pub fn main(args: Vec<String>) -> Result<(), String> {
@@ -214,11 +266,31 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
         ["restore", ref rest @ ..] => {
             let force = rest.contains(&"--force");
             let dir = rest.iter().find(|a| **a != "--force").map(Path::new);
-            let (dir, restored, kept) = restore(dir, force)?;
+            let (dir, restored, kept) = restore(dir, force, None)?;
             println!("{restored} files restored from {}", dir.display());
             for k in &kept {
                 println!("kept (changed since the install): ~/{k}");
             }
+        }
+        ["prune", ref rest @ ..] => {
+            let (mut keep, mut dry_run) = (5, false);
+            let mut it = rest.iter();
+            while let Some(&a) = it.next() {
+                match a {
+                    "--dry-run" => dry_run = true,
+                    "--keep" => {
+                        let v = it.next().ok_or("--keep needs a number")?;
+                        keep = v.parse().map_err(|_| format!("bad --keep '{v}'"))?;
+                    }
+                    other => return Err(format!("unexpected argument '{other}'\n\n{USAGE}")),
+                }
+            }
+            let doomed = prune(keep, dry_run)?;
+            let verb = if dry_run { "would remove" } else { "removed" };
+            doomed
+                .iter()
+                .for_each(|d| println!("{verb} {}", d.display()));
+            println!("{} old backups {verb}", doomed.len());
         }
         ["path"] => println!("{}", last(&home()?)?.display()),
         [] | ["-h" | "--help"] => print!("{USAGE}"),
@@ -265,7 +337,7 @@ mod tests {
         // Changed by something else after the install: not in the manifest.
         fs::write(home.join("cfg/b"), "b-later").unwrap();
 
-        let (n, kept) = restore_in(&home, &dir, false).unwrap();
+        let (n, kept) = restore_in(&home, &dir, false, None).unwrap();
         assert_eq!((n, kept.len()), (3, 0));
         assert_eq!(read(&home, "cfg/a").as_deref(), Some("a0"));
         assert_eq!(read(&home, "cfg/c"), None);
@@ -280,13 +352,34 @@ mod tests {
         install(&home, &dir);
         fs::write(home.join("cfg/a"), "mine").unwrap();
 
-        let (n, kept) = restore_in(&home, &dir, false).unwrap();
+        let (n, kept) = restore_in(&home, &dir, false, None).unwrap();
         assert_eq!((n, kept), (2, vec!["cfg/a".to_string()]));
         assert_eq!(read(&home, "cfg/a").as_deref(), Some("mine"));
 
-        let (n, kept) = restore_in(&home, &dir, true).unwrap();
+        let (n, kept) = restore_in(&home, &dir, true, None).unwrap();
         assert_eq!((n, kept.len()), (3, 0));
         assert_eq!(read(&home, "cfg/a").as_deref(), Some("a0"));
+        fs::remove_dir_all(home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn prune_keeps_the_newest_and_the_last() {
+        let names = ["b-01", "b-05", "b-03", "b-02", "b-04"]
+            .map(String::from)
+            .to_vec();
+        assert_eq!(to_prune(names.clone(), 2, None), ["b-03", "b-02", "b-01"]);
+        assert_eq!(to_prune(names.clone(), 2, Some("b-02")), ["b-03", "b-01"]);
+        assert!(to_prune(names, 9, None).is_empty());
+    }
+
+    #[test]
+    fn only_restores_matching_paths() {
+        let (home, dir) = setup("only");
+        install(&home, &dir);
+        let (n, _) = restore_in(&home, &dir, false, Some(&["cfg/"])).unwrap();
+        assert_eq!(n, 2);
+        assert_eq!(read(&home, "cfg/a").as_deref(), Some("a0"));
+        assert_eq!(read(&home, "rc"), None, "rc was not asked for");
         fs::remove_dir_all(home.parent().unwrap()).unwrap();
     }
 
@@ -294,7 +387,7 @@ mod tests {
     fn restore_without_seal_is_an_error() {
         let (home, dir) = setup("unsealed");
         create_in(&home, &dir, &W).unwrap();
-        assert!(restore_in(&home, &dir, false).is_err());
+        assert!(restore_in(&home, &dir, false, None).is_err());
         fs::remove_dir_all(home.parent().unwrap()).unwrap();
     }
 }

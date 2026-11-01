@@ -7,6 +7,9 @@ pub struct Step {
     pub label: &'static str,
     /// Runs only when named explicitly; never part of the default selection.
     pub optional: bool,
+    /// What the step changes among the backed-up files: path prefixes
+    /// relative to $HOME (`uninstall --only` restores just these).
+    pub paths: &'static [&'static str],
 }
 
 /// In installer order.
@@ -15,31 +18,40 @@ pub const STEPS: [Step; 6] = [
         name: "cosmic",
         label: "Desktop theme",
         optional: false,
+        paths: &[".config/cosmic/com.system76.CosmicTheme"],
     },
     Step {
         name: "terminal",
         label: "Terminal colors",
         optional: false,
+        paths: &[".config/cosmic/com.system76.CosmicTerm/"],
     },
     Step {
         name: "bash",
         label: "Bash prompt",
         optional: false,
+        paths: &[".bashrc"],
     },
     Step {
         name: "zed",
         label: "Zed theme",
         optional: false,
+        paths: &[".config/zed/settings.json"],
     },
     Step {
         name: "icons",
         label: "Papirus icons (optional)",
         optional: true,
+        paths: &[".config/cosmic/com.system76.CosmicTk/v1/icon_theme"],
     },
     Step {
         name: "wallpaper",
         label: "Wallpaper",
         optional: false,
+        paths: &[
+            ".config/cosmic/com.system76.CosmicBackground/",
+            ".config/cosmic/com.system76.CosmicSettings.Wallpaper/",
+        ],
     },
 ];
 
