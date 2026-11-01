@@ -31,6 +31,16 @@ FLAVOR=latte ACCENT=blue ctp-cosmic apply
 curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | bash -s -- bash wallpaper
 ```
 
+### Tab completion
+
+```bash
+ctp-cosmic completions bash > ~/.local/share/bash-completion/completions/ctp-cosmic
+ctp-cosmic completions zsh  > ~/.zfunc/_ctp-cosmic   # with ~/.zfunc in $fpath
+ctp-cosmic completions fish > ~/.config/fish/completions/ctp-cosmic.fish
+```
+
+Commands, flags and their values (flavors, accents, styles, steps) complete.
+
 ### From a git clone
 
 ```bash

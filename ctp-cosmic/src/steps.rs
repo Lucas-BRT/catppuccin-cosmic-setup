@@ -65,6 +65,11 @@ const ROTATE: [(&str, u32); 6] = [
     ("2h", 7200),
 ];
 
+/// The slideshow interval labels, shortest first.
+pub fn rotate_labels() -> Vec<&'static str> {
+    ROTATE.iter().map(|(l, _)| *l).collect()
+}
+
 /// Seconds for a label ("30m") or the same number as text ("1800").
 pub fn rotate_seconds(value: &str) -> Result<u32, String> {
     ROTATE

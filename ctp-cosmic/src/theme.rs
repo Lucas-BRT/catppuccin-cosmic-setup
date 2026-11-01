@@ -403,6 +403,14 @@ then imports the chosen one with `cosmic-settings appearance import` unless
 --no-apply. Prints what Frosted Glass is set to, then the theme file.
 ";
 
+/// The corner styles and the Frosted Glass strengths, for completions.
+pub fn roundness_names() -> Vec<&'static str> {
+    ROUNDNESS.iter().map(|(n, _)| *n).collect()
+}
+pub fn blur_names() -> Vec<&'static str> {
+    BLUR.iter().map(|b| b.1).collect()
+}
+
 /// "OUTER,INNER" as two numbers.
 pub fn parse_gaps(v: &str) -> Result<(i64, i64), String> {
     let parts: Vec<_> = v.split(',').map(|s| s.trim().parse::<i64>()).collect();
