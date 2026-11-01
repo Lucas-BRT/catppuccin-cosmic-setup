@@ -261,8 +261,8 @@ ctp-cosmic theme: Catppuccin desktop themes in the COSMIC 1.10 format
 
 Usage:
   ctp-cosmic theme [OPTIONS] [-o FILE]   one theme (default: to stdout)
-  ctp-cosmic theme [OPTIONS] --all DIR   every flavor and accent, solid and
-                                         frosted, as catppuccin-<flavor>-<accent>+<roundness>[+frosted].ron
+  ctp-cosmic theme [OPTIONS] --all DIR   every flavor, accent and roundness, solid
+                                         and frosted, as catppuccin-<flavor>-<accent>+<roundness>[+frosted].ron
 
 Apply one with: cosmic-settings appearance import FILE
 Or let the installer do it, keeping your density and Frosted Glass:
@@ -326,23 +326,27 @@ fn validate(o: &Options) -> Result<(), String> {
     Ok(())
 }
 
-/// Every flavor and accent, solid and frosted, into `dir`. Returns how many.
+/// Every roundness, flavor and accent, solid and frosted, into `dir`. Returns how many.
 fn write_all(dir: &Path, o: &Options) -> Result<usize, String> {
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let strength = o.frosted.clone().unwrap_or_else(|| "medium".into());
     let mut n = 0;
-    for flavor in palette::flavors() {
-        for accent in palette::accents() {
-            for frosted in [None, Some(strength.clone())] {
-                let t = Options {
-                    flavor: flavor.into(),
-                    accent: accent.into(),
-                    frosted: frosted.clone(),
-                    ..o.clone()
-                };
-                let path = dir.join(filename(flavor, accent, &o.roundness, frosted.is_some()));
-                std::fs::write(&path, build(&t)).map_err(|e| format!("{}: {e}", path.display()))?;
-                n += 1;
+    for (roundness, _) in ROUNDNESS {
+        for flavor in palette::flavors() {
+            for accent in palette::accents() {
+                for frosted in [None, Some(strength.clone())] {
+                    let t = Options {
+                        flavor: flavor.into(),
+                        accent: accent.into(),
+                        roundness: roundness.into(),
+                        frosted: frosted.clone(),
+                        ..o.clone()
+                    };
+                    let path = dir.join(filename(flavor, accent, roundness, frosted.is_some()));
+                    std::fs::write(&path, build(&t))
+                        .map_err(|e| format!("{}: {e}", path.display()))?;
+                    n += 1;
+                }
             }
         }
     }
@@ -386,6 +390,8 @@ ctp-cosmic theme install: generate the theme and apply it
 
 Usage:
   ctp-cosmic theme install [--flavor NAME] [--accent NAME] [--alpha-offset N]
+                           [--roundness NAME] [--gaps OUTER,INNER] [--active-hint N]
+                           [--window-hint NAME]
                            [--frosted auto|off|STRENGTH] [--frost-on LIST]
                            [--no-apply] [--config DIR] [--data-dir DIR]
 
@@ -397,10 +403,25 @@ then imports the chosen one with `cosmic-settings appearance import` unless
 --no-apply. Prints what Frosted Glass is set to, then the theme file.
 ";
 
+/// "OUTER,INNER" as two numbers.
+pub fn parse_gaps(v: &str) -> Result<(i64, i64), String> {
+    let parts: Vec<_> = v.split(',').map(|s| s.trim().parse::<i64>()).collect();
+    match parts.as_slice() {
+        [Ok(a), Ok(b)] => Ok((*a, *b)),
+        _ => Err(format!("invalid gaps '{v}' (expected OUTER,INNER)")),
+    }
+}
+
 /// What `theme install` needs; `frosted` is "auto", "off" or a strength.
+#[derive(Clone)]
 pub struct InstallOpts {
     pub flavor: String,
     pub accent: String,
+    pub roundness: String,
+    pub gaps: (i64, i64),
+    pub active_hint: i64,
+    /// Color of the active window outline (default: the accent).
+    pub window_hint: Option<String>,
     pub alpha_offset: f64,
     pub frosted: String,
     pub frost_on: Option<Vec<String>>,
@@ -410,6 +431,33 @@ pub struct InstallOpts {
 }
 
 impl InstallOpts {
+    pub fn new(flavor: &str, accent: &str) -> Self {
+        let d = Options::default();
+        Self {
+            flavor: flavor.into(),
+            accent: accent.into(),
+            roundness: d.roundness,
+            gaps: d.gaps,
+            active_hint: d.active_hint,
+            window_hint: None,
+            alpha_offset: 0.0,
+            frosted: "auto".into(),
+            frost_on: None,
+            apply: true,
+            config: PathBuf::new(),
+            data: PathBuf::new(),
+        }
+    }
+
+    /// Fails on a bad value before anything is changed.
+    pub fn check(&self) -> Result<(), String> {
+        let probe = Self {
+            config: PathBuf::from("/nonexistent"),
+            ..self.clone()
+        };
+        probe.resolve().map(drop)
+    }
+
     /// The theme options this resolves to, given COSMIC's current Frosted
     /// Glass and density.
     fn resolve(&self) -> Result<Options, String> {
@@ -417,6 +465,10 @@ impl InstallOpts {
             flavor: self.flavor.clone(),
             accent: self.accent.clone(),
             alpha_offset: self.alpha_offset,
+            roundness: self.roundness.clone(),
+            gaps: self.gaps,
+            active_hint: self.active_hint,
+            window_hint: self.window_hint.clone(),
             ..Options::default()
         };
         let dark = palette::check(&o.flavor, Some(&o.accent))?.is_dark();
@@ -437,21 +489,6 @@ impl InstallOpts {
         validate(&o)?;
         Ok(o)
     }
-}
-
-/// Fails early on a bad --frosted / --frost-on, before anything is changed.
-pub fn check_frost(frosted: &str, frost_on: Option<&[String]>) -> Result<(), String> {
-    let o = InstallOpts {
-        flavor: "mocha".into(),
-        accent: "mauve".into(),
-        alpha_offset: 0.0,
-        frosted: frosted.into(),
-        frost_on: frost_on.map(<[String]>::to_vec),
-        apply: false,
-        config: PathBuf::from("/nonexistent"),
-        data: PathBuf::new(),
-    };
-    o.resolve().map(drop)
 }
 
 /// Writes every theme plus the chosen one and (unless `apply` is off)
@@ -485,16 +522,7 @@ pub fn install_theme(i: &InstallOpts) -> Result<(String, PathBuf), String> {
 }
 
 fn install(args: Vec<String>) -> Result<(), String> {
-    let mut i = InstallOpts {
-        flavor: "mocha".into(),
-        accent: "mauve".into(),
-        alpha_offset: 0.0,
-        frosted: "auto".into(),
-        frost_on: None,
-        apply: true,
-        config: PathBuf::new(),
-        data: PathBuf::new(),
-    };
+    let mut i = InstallOpts::new("mocha", "mauve");
     let (mut config, mut data) = (None::<PathBuf>, None::<PathBuf>);
     let mut it = args.into_iter();
     while let Some(arg) = it.next() {
@@ -506,6 +534,16 @@ fn install(args: Vec<String>) -> Result<(), String> {
             }
             "--flavor" => i.flavor = value("--flavor")?,
             "--accent" => i.accent = value("--accent")?,
+            "--roundness" => i.roundness = value("--roundness")?,
+            "--gaps" => i.gaps = parse_gaps(&value("--gaps")?)?,
+            "--active-hint" => {
+                let v = value("--active-hint")?;
+                i.active_hint = v
+                    .trim()
+                    .parse()
+                    .map_err(|_| format!("invalid --active-hint '{v}'"))?;
+            }
+            "--window-hint" => i.window_hint = Some(value("--window-hint")?),
             "--alpha-offset" => {
                 let v = value("--alpha-offset")?;
                 i.alpha_offset = v
@@ -581,12 +619,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
                     .map_err(|_| format!("invalid --alpha-offset '{v}'"))?;
             }
             "--gaps" => {
-                let v = value("--gaps")?;
-                let parts: Vec<_> = v.split(',').map(|s| s.trim().parse::<i64>()).collect();
-                o.gaps = match parts.as_slice() {
-                    [Ok(a), Ok(b)] => (*a, *b),
-                    _ => return Err(format!("invalid --gaps '{v}' (expected OUTER,INNER)")),
-                };
+                o.gaps = parse_gaps(&value("--gaps")?)?;
             }
             "--active-hint" => {
                 let v = value("--active-hint")?;
@@ -683,7 +716,7 @@ mod tests {
         // Sets: 4 flavors x 14 accents x (solid, frosted), plus the custom one.
         assert_eq!(
             std::fs::read_dir(dir.join("out")).unwrap().count(),
-            4 * 14 * 2 + 1
+            4 * 14 * 2 * 3 + 1
         );
 
         install(args(&["--frosted", "off"])).unwrap();

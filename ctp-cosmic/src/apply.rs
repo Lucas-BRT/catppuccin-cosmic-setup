@@ -34,6 +34,13 @@ const CTP_FOLDERS: (&str, &str) = (
 pub struct Opts {
     pub flavor: String,
     pub accent: String,
+    /// round, slightlyround or square.
+    pub roundness: String,
+    /// "OUTER,INNER" gaps between windows.
+    pub gaps: Option<String>,
+    pub active_hint: Option<i64>,
+    /// Color of the active window outline (default: the accent).
+    pub window_hint: Option<String>,
     /// "auto" keeps COSMIC's current Frosted Glass; "off"; or a blur strength.
     pub frosted: String,
     pub frost_on: Option<String>,
@@ -57,6 +64,10 @@ impl Default for Opts {
         Self {
             flavor: "mocha".into(),
             accent: "mauve".into(),
+            roundness: "round".into(),
+            gaps: None,
+            active_hint: None,
+            window_hint: None,
             frosted: "auto".into(),
             frost_on: None,
             alpha_offset: 0.0,
@@ -82,16 +93,21 @@ pub struct Parsed {
     pub explicit: bool,
 }
 
-const ENV: [&str; 9] = [
-    "FLAVOR",
-    "ACCENT",
-    "FROSTED",
-    "FROST_ON",
-    "ALPHA_OFFSET",
-    "WALLPAPER_STYLE",
-    "WALLPAPER_ROTATE",
-    "TERMINAL_FONT",
-    "TERMINAL_FONT_SIZE",
+/// (environment variable, flag name) of every option that takes a value.
+const KEYS: [(&str, &str); 13] = [
+    ("FLAVOR", "flavor"),
+    ("ACCENT", "accent"),
+    ("FROSTED", "frosted"),
+    ("FROST_ON", "frost-on"),
+    ("ALPHA_OFFSET", "alpha-offset"),
+    ("ROUNDNESS", "roundness"),
+    ("GAPS", "gaps"),
+    ("ACTIVE_HINT", "active-hint"),
+    ("WINDOW_HINT", "window-hint"),
+    ("WALLPAPER_STYLE", "wallpaper-style"),
+    ("WALLPAPER_ROTATE", "wallpaper-rotate"),
+    ("TERMINAL_FONT", "font"),
+    ("TERMINAL_FONT_SIZE", "font-size"),
 ];
 
 fn set(o: &mut Opts, key: &str, v: &str) -> Result<(), String> {
@@ -100,6 +116,15 @@ fn set(o: &mut Opts, key: &str, v: &str) -> Result<(), String> {
         "accent" => o.accent = v.into(),
         "frosted" => o.frosted = v.into(),
         "frost-on" => o.frost_on = Some(v.into()),
+        "roundness" => o.roundness = v.into(),
+        "gaps" => o.gaps = Some(v.into()),
+        "active-hint" => {
+            o.active_hint = Some(
+                v.parse()
+                    .map_err(|_| format!("invalid active hint '{v}'"))?,
+            )
+        }
+        "window-hint" => o.window_hint = Some(v.into()),
         "alpha-offset" => {
             o.alpha_offset = v
                 .parse()
@@ -124,18 +149,7 @@ pub fn parse(
 ) -> Result<Parsed, String> {
     let mut explicit = last.is_some();
     let mut o = last.unwrap_or_default();
-    let pairs = ENV.iter().zip([
-        "flavor",
-        "accent",
-        "frosted",
-        "frost-on",
-        "alpha-offset",
-        "wallpaper-style",
-        "wallpaper-rotate",
-        "font",
-        "font-size",
-    ]);
-    for (var, key) in pairs {
+    for (var, key) in KEYS {
         if let Some(v) = env(var).filter(|v| !v.is_empty()) {
             set(&mut o, key, &v)?;
             explicit = true;
@@ -162,21 +176,10 @@ pub fn parse(
             "--dry-run" => (o.dry_run, explicit) = (true, true),
             flag if flag.starts_with("--") => {
                 let key = &flag[2..];
-                let v = it.next().ok_or(format!("{flag} needs a value"))?;
-                if !matches!(
-                    key,
-                    "flavor"
-                        | "accent"
-                        | "frosted"
-                        | "frost-on"
-                        | "alpha-offset"
-                        | "wallpaper-style"
-                        | "wallpaper-rotate"
-                        | "font"
-                        | "font-size"
-                ) {
+                if !KEYS.iter().any(|(_, k)| *k == key) {
                     return Err(format!("unknown option '{flag}' (see --help)"));
                 }
+                let v = it.next().ok_or(format!("{flag} needs a value"))?;
                 set(&mut o, key, v)?;
                 explicit = true;
             }
@@ -211,13 +214,7 @@ pub fn validate(o: &Opts) -> Result<(), String> {
             );
         }
     }
-    let frost_on: Option<Vec<String>> = o.frost_on.as_ref().map(|l| {
-        l.split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect()
-    });
-    theme::check_frost(&o.frosted, frost_on.as_deref())?;
+    theme_opts(o, PathBuf::new(), PathBuf::new())?.check()?;
     if let Some(unknown) = o
         .steps
         .iter()
@@ -330,24 +327,38 @@ fn step_backup() -> Result<PathBuf, String> {
     Ok(dest)
 }
 
+/// The desktop theme this run asks for.
+fn theme_opts(o: &Opts, config: PathBuf, data: PathBuf) -> Result<theme::InstallOpts, String> {
+    let mut t = theme::InstallOpts::new(&o.flavor, &o.accent);
+    t.roundness = o.roundness.clone();
+    if let Some(g) = &o.gaps {
+        t.gaps = theme::parse_gaps(g)?;
+    }
+    if let Some(h) = o.active_hint {
+        t.active_hint = h;
+    }
+    t.window_hint = o.window_hint.clone();
+    t.alpha_offset = o.alpha_offset;
+    t.frosted = o.frosted.clone();
+    t.frost_on = o.frost_on.as_ref().map(|l| {
+        l.split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    });
+    t.apply = !o.no_apply;
+    (t.config, t.data) = (config, data);
+    Ok(t)
+}
+
 fn step_cosmic(o: &Opts) -> Result<(), String> {
     let home = home()?;
     ui::info(&format!("COSMIC theme ({}, {} accent)", o.flavor, o.accent));
-    let (label, theme) = theme::install_theme(&theme::InstallOpts {
-        flavor: o.flavor.clone(),
-        accent: o.accent.clone(),
-        alpha_offset: o.alpha_offset,
-        frosted: o.frosted.clone(),
-        frost_on: o.frost_on.as_ref().map(|l| {
-            l.split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect()
-        }),
-        apply: !o.no_apply,
-        config: home.join(".config/cosmic"),
-        data: home.join(".local/share/catppuccin/themes/cosmic-settings"),
-    })?;
+    let (label, theme) = theme::install_theme(&theme_opts(
+        o,
+        home.join(".config/cosmic"),
+        home.join(".local/share/catppuccin/themes/cosmic-settings"),
+    )?)?;
     ui::ok(&format!("Style: {label}"));
     ui::ok(&format!(
         "Themes generated in {}",
@@ -598,6 +609,10 @@ Options (each also an environment variable; flags win):
   --frost-on LIST          FROST_ON          windows,system_interface,panel,applets,
                                              maximized_apps
   --alpha-offset N         ALPHA_OFFSET      0.1 more opaque, -0.1 more transparent
+  --roundness NAME         ROUNDNESS         round (default), slightlyround, square
+  --gaps OUTER,INNER       GAPS              gaps between windows (0,8)
+  --active-hint N          ACTIVE_HINT       active window outline width (3)
+  --window-hint NAME       WINDOW_HINT       its color: any accent (default: the accent)
   --wallpaper-style NAME   WALLPAPER_STYLE   glow, waves, ... or all (see `wallpaper --help`)
   --wallpaper-rotate T     WALLPAPER_ROTATE   with style all: 5m 10m 15m 30m 1h 2h
   --font NAME              TERMINAL_FONT      COSMIC Terminal font (`terminal font list`)
@@ -711,6 +726,10 @@ mod tests {
             args(&["--wallpaper-rotate", "30m"]), // needs style all
             args(&["--frosted", "bogus"]),
             args(&["--frost-on", "sidebar", "--frosted", "medium"]),
+            args(&["--roundness", "blob"]),
+            args(&["--gaps", "8"]),
+            args(&["--active-hint", "thick"]),
+            args(&["--window-hint", "teal2"]),
             args(&["nosuchstep"]),
             args(&["--wat", "1"]),
             args(&["--flavor"]),
@@ -725,6 +744,31 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn theme_options_reach_the_theme() {
+        let p = parse(
+            &args(&[
+                "--roundness",
+                "square",
+                "--gaps",
+                "2,4",
+                "--active-hint",
+                "5",
+                "--window-hint",
+                "teal",
+            ]),
+            &no_env,
+            None,
+        )
+        .unwrap();
+        let t = theme_opts(&p.opts, PathBuf::new(), PathBuf::new()).unwrap();
+        assert_eq!(
+            (t.roundness.as_str(), t.gaps, t.active_hint),
+            ("square", (2, 4), 5)
+        );
+        assert_eq!(t.window_hint.as_deref(), Some("teal"));
     }
 
     #[test]

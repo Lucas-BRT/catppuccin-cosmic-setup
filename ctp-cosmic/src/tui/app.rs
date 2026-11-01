@@ -26,6 +26,9 @@ pub const FROSTED: [&str; 16] = [
     "extremely_high_2",
 ];
 
+/// Corner roundness of the desktop theme.
+pub const ROUNDNESS: [&str; 3] = ["round", "slightlyround", "square"];
+
 /// Slideshow intervals COSMIC Settings offers (only with every style).
 pub const ROTATE: [&str; 7] = ["off", "5m", "10m", "15m", "30m", "1h", "2h"];
 
@@ -38,6 +41,7 @@ pub enum Field {
     Flavor,
     Accent,
     Frosted,
+    Roundness,
     Wallpaper,
     Slideshow,
     Font,
@@ -50,6 +54,7 @@ pub fn fields() -> Vec<Field> {
         Field::Flavor,
         Field::Accent,
         Field::Frosted,
+        Field::Roundness,
         Field::Wallpaper,
         Field::Slideshow,
         Field::Font,
@@ -65,6 +70,7 @@ pub struct Config {
     pub flavor: usize,
     pub accent: usize,
     pub frosted: usize,
+    pub roundness: usize,
     /// Index into `wallpaper_choices()` (the styles, then "all").
     pub style: usize,
     pub rotate: usize,
@@ -82,6 +88,7 @@ impl Default for Config {
             flavor: flavors.iter().position(|f| *f == "mocha").unwrap_or(0),
             accent: accents.iter().position(|a| *a == "mauve").unwrap_or(0),
             frosted: 0,
+            roundness: 0,
             style: 0,
             rotate: 0,
             font: 0,
@@ -102,6 +109,7 @@ impl Config {
             flavor: find(&palette::flavors(), &o.flavor),
             accent: find(&palette::accents(), &o.accent),
             frosted: find(&FROSTED, &o.frosted),
+            roundness: find(&ROUNDNESS, &o.roundness),
             style: find(&wallpaper_choices(), &o.style),
             rotate,
             font: o
@@ -159,6 +167,9 @@ impl Config {
         if self.slideshow_available() && self.rotate > 0 {
             env.push(("WALLPAPER_ROTATE", ROTATE[self.rotate].to_string()));
         }
+        if self.roundness > 0 {
+            env.push(("ROUNDNESS", ROUNDNESS[self.roundness].to_string()));
+        }
         if self.font > 0 {
             env.push(("TERMINAL_FONT", self.fonts[self.font].clone()));
         }
@@ -202,6 +213,7 @@ impl Setup {
             Field::Flavor => cycle(&mut c.flavor, palette::flavors().len(), forward),
             Field::Accent => cycle(&mut c.accent, palette::accents().len(), forward),
             Field::Frosted => cycle(&mut c.frosted, FROSTED.len(), forward),
+            Field::Roundness => cycle(&mut c.roundness, ROUNDNESS.len(), forward),
             Field::Wallpaper => cycle(&mut c.style, wallpaper_choices().len(), forward),
             Field::Slideshow if c.slideshow_available() => {
                 cycle(&mut c.rotate, ROTATE.len(), forward)
@@ -408,14 +420,14 @@ mod tests {
         press(&mut s, KeyCode::Left); // accent before mauve
         assert_eq!(s.cfg.accent_id(), "pink");
         // Slideshow is locked until the wallpaper is "all".
-        s.field = 4;
+        s.field = 5;
         press(&mut s, KeyCode::Right);
         assert_eq!(s.cfg.rotate, 0);
         assert!(s.message.is_some());
-        s.field = 3;
+        s.field = 4;
         press(&mut s, KeyCode::Left); // glow → all
         assert_eq!(s.cfg.style_id(), "all");
-        s.field = 4;
+        s.field = 5;
         press(&mut s, KeyCode::Right);
         assert!(s.cfg.env().contains(&("WALLPAPER_ROTATE", "5m".into())));
     }
@@ -433,6 +445,7 @@ mod tests {
             flavor: "latte".into(),
             accent: "peach".into(),
             frosted: "medium".into(),
+            roundness: "square".into(),
             style: "all".into(),
             rotate: Some("30m".into()),
             font: Some("Fira Mono".into()),
@@ -448,6 +461,7 @@ mod tests {
         let env = c.env();
         for (k, v) in [
             ("FROSTED", "medium"),
+            ("ROUNDNESS", "square"),
             ("WALLPAPER_ROTATE", "30m"),
             ("TERMINAL_FONT", "Fira Mono"),
         ] {
@@ -460,7 +474,7 @@ mod tests {
         let mut s = Setup::default();
         s.cfg.fonts.push("Fira Mono".into());
         assert!(!s.cfg.env().iter().any(|(k, _)| *k == "TERMINAL_FONT"));
-        s.field = 5;
+        s.field = 6;
         assert_eq!(s.current(), Field::Font);
         press(&mut s, KeyCode::Right);
         assert!(
@@ -481,12 +495,12 @@ mod tests {
             ["cosmic", "terminal", "bash", "zed", "wallpaper"]
         );
         for i in (0..STEPS.len()).filter(|i| !STEPS[*i].optional) {
-            s.field = 6 + i;
+            s.field = 7 + i;
             press(&mut s, KeyCode::Char(' '));
         }
         assert!(s.cfg.step_args().is_empty());
         assert_eq!(press(&mut s, KeyCode::Enter), Action::None);
-        s.field = 6 + 2;
+        s.field = 7 + 2;
         press(&mut s, KeyCode::Char(' '));
         assert_eq!(s.cfg.step_args(), ["bash"]);
         assert_eq!(press(&mut s, KeyCode::Enter), Action::Install);

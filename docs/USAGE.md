@@ -52,6 +52,10 @@ refuses to run from a cargo build.
 | `FROSTED` | `--frosted` | `auto` | `auto` keeps your current Frosted Glass setting, `off` disables it, or a strength from `extremely_low` to `extremely_high_2` |
 | `FROST_ON` | `--frost-on` | all but `maximized_apps` | where Frosted Glass applies: `windows`, `system_interface`, `panel`, `applets`, `maximized_apps` |
 | `ALPHA_OFFSET` | `--alpha-offset` | `0` | Frosted Glass opacity tweak (`0.1` more opaque, `-0.1` more transparent) |
+| `ROUNDNESS` | `--roundness` | `round` | corner style: `round`, `slightlyround`, `square`. Also a row in the interactive setup |
+| `GAPS` | `--gaps` | `0,8` | gaps between windows, `OUTER,INNER` |
+| `ACTIVE_HINT` | `--active-hint` | `3` | width of the active window outline |
+| `WINDOW_HINT` | `--window-hint` | the accent | color of that outline: any accent name |
 | `WALLPAPER_STYLE` | `--wallpaper-style` | `glow` | a wallpaper style, or `all` (see [Wallpapers](#wallpapers)) |
 | `WALLPAPER_ROTATE` | `--wallpaper-rotate` | | slideshow interval for `WALLPAPER_STYLE=all`: `5m` `10m` `15m` `30m` `1h` `2h` |
 | `NO_APPLY` | `--no-apply` | `0` | `1` generates the desktop theme without applying it |

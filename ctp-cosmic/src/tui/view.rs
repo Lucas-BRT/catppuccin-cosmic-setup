@@ -8,7 +8,9 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Paragraph, Widget, Wrap};
 
-use super::app::{Config, FROSTED, Field, Progress, ROTATE, STEPS, Setup, Status, fields};
+use super::app::{
+    Config, FROSTED, Field, Progress, ROTATE, ROUNDNESS, STEPS, Setup, Status, fields,
+};
 use crate::palette::{self, Palette};
 
 /// Colors of the interface, taken from the selected flavor and accent.
@@ -159,6 +161,12 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
         FROSTED[c.frosted].replace('_', " "),
         true,
     ));
+    lines.push(row(
+        Field::Roundness,
+        "Corners",
+        ROUNDNESS[c.roundness].replace("slightly", "slightly "),
+        c.steps[0],
+    ));
     let wall_on = c.steps[5];
     lines.push(row(
         Field::Wallpaper,
@@ -226,7 +234,7 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
             },
         ),
     ]));
-    debug_assert_eq!(fields().len(), 7 + STEPS.len());
+    debug_assert_eq!(fields().len(), 8 + STEPS.len());
     f.render_widget(Paragraph::new(lines), inner);
 
     // Right: live preview.
