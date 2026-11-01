@@ -11,6 +11,7 @@ mod palette;
 mod prompt;
 mod steps;
 mod styles;
+mod terminal;
 mod theme;
 mod tui;
 mod wallpaper;
@@ -28,6 +29,7 @@ Usage:
   ctp-cosmic register-wallpaper-folder ...   add a folder to COSMIC's wallpaper picker
   ctp-cosmic prompt ...                      bash prompt and its ~/.bashrc block
   ctp-cosmic steps ...                       the installer steps (setup.sh reads them)
+  ctp-cosmic terminal ...                    COSMIC Terminal color schemes
   ctp-cosmic zed ...                         configure Zed settings (theme and icon theme)
   ctp-cosmic tui --repo DIR                  interactive setup (setup.sh opens it)
   ctp-cosmic --version
@@ -46,6 +48,7 @@ fn main() -> ExitCode {
         "register-wallpaper-folder" => folders::main(rest).map(|()| 0),
         "prompt" => prompt::main(rest).map(|()| 0),
         "steps" => steps::main(rest).map(|()| 0),
+        "terminal" => terminal::main(rest),
         "zed" => zed::main(rest).map(|()| 0),
         "tui" => tui::main(rest),
         "-V" | "--version" => {

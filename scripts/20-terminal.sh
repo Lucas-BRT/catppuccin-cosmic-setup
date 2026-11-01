@@ -1,28 +1,19 @@
 #!/usr/bin/env bash
 # =============================================================================
 # 20 · COSMIC Terminal color scheme
-# The file comes from catppuccin/cosmic-desktop
-# (themes/cosmic-term/catppuccin-mocha.ron). Its format did not change in
-# COSMIC 1.10. The terminal has no command to import schemes, so this part
-# still goes through its UI.
+# `ctp-cosmic terminal apply` adds the flavor's scheme to COSMIC Terminal's
+# config (color_schemes_dark or _light, whichever matches the flavor) and
+# selects it for syntax colors: the same keys the terminal's Color schemes…
+# → Import fills, so nothing is left to do by hand. Schemes you added
+# yourself are kept. Colors follow catppuccin/cosmic-desktop's cosmic-term
+# schemes.
 #
 # The scheme does not set `background`: the terminal uses the desktop
-# theme's background (Base #1e1e2e), so it also turns translucent with
-# Frosted Glass.
+# theme's background, so it also turns translucent with Frosted Glass.
 # =============================================================================
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
 info "COSMIC Terminal"
-fetch_pinned "$CTP_COSMIC_REPO" "$CTP_COSMIC_REV" "$CACHE_DIR/cosmic-desktop"
-mkdir -p "$DATA_DIR/themes"
-cp -r "$CACHE_DIR/cosmic-desktop/themes/cosmic-term" "$DATA_DIR/themes/"
-scheme="$DATA_DIR/themes/cosmic-term/catppuccin-$FLAVOR.ron"
-[ -f "$scheme" ] && ok "Scheme file created: $scheme"
-
-if grep -rqs "Catppuccin" "$COSMIC_DIR/com.system76.CosmicTerm/v1/"; then
-    ok "Catppuccin scheme already imported in the terminal"
-else
-    todo "In COSMIC Terminal: View → Color schemes… → Import and pick:"
-    todo "  $scheme (press Ctrl+H to view hidden folders)"
-fi
+ctp terminal apply "$FLAVOR"
+ok "Terminal colors: Catppuccin $(ctp palette name "$FLAVOR")"

@@ -56,7 +56,7 @@ icons step, uses the light Papirus icons).
 | --- | --- |
 | *(backup)* | copies `~/.config/cosmic`, `~/.bashrc` and Zed's `settings.json` to `~/.config/catppuccin-backup-<date>/` |
 | `cosmic` | generates the desktop theme and applies it with `cosmic-settings appearance import`, keeping your interface density |
-| `terminal` | downloads the COSMIC Terminal scheme (import it by hand, see below) |
+| `terminal` | adds the Catppuccin color scheme to COSMIC Terminal and selects it |
 | `bash` | installs the prompt and adds one marked block to `~/.bashrc` |
 | `zed` | applies Catppuccin theme and icons to Zed (`~/.config/zed/settings.json`) |
 | `icons` | **optional**, see [Icons](#icons-optional) |
@@ -64,11 +64,10 @@ icons step, uses the light Papirus icons).
 
 ### Terminal
 
-COSMIC Terminal has no command to import color schemes, so this one is
-manual: **View → Color schemes… → Import**, then pick
-`~/.local/share/catppuccin/themes/cosmic-term/catppuccin-<flavor>.ron`.
-The scheme has no background of its own, so the terminal follows the
-desktop theme (and Frosted Glass).
+The scheme is written to COSMIC Terminal's own config, next to any schemes
+you added yourself; open **View → Color schemes…** to pick another. The scheme has no
+background of its own, so the terminal follows the desktop theme (and
+Frosted Glass).
 
 ### Icons (optional)
 

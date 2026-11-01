@@ -16,8 +16,6 @@ GITHUB_REPO=Lucas-BRT/catppuccin-cosmic-setup
 
 # Upstream repositories pinned to exact commits so installs are
 # reproducible. To update, replace the hash with the commit you want.
-CTP_COSMIC_REPO=https://github.com/catppuccin/cosmic-desktop.git
-CTP_COSMIC_REV=95e81098042dd2102f0b258f6990f886c5759692
 CTP_FOLDERS_REPO=https://github.com/catppuccin/papirus-folders.git
 CTP_FOLDERS_REV=f83671d17ea67e335b34f8028a7e6d78bca735d7
 PAPIRUS_REPO=https://github.com/PapirusDevelopmentTeam/papirus-icon-theme.git

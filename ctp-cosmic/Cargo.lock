@@ -482,6 +482,7 @@ dependencies = [
  "ratatui",
  "rayon",
  "ron 0.8.1",
+ "serde",
 ]
 
 [[package]]

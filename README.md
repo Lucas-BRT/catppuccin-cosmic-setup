@@ -30,7 +30,7 @@ The `ctp-cosmic` binary is installed in `~/.local/bin`: run
 
 Your settings are backed up first, and
 `~/.local/share/catppuccin-cosmic-setup/current/uninstall.sh` restores them.
-Options, the one manual step (terminal colors) and wallpaper styles are in
+Options and wallpaper styles are in
 [docs/USAGE.md](docs/USAGE.md).
 
 ## What it sets up
