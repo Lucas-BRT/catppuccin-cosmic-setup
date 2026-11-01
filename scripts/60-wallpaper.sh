@@ -21,14 +21,7 @@ source "$(dirname "$0")/lib.sh"
 settings="$COSMIC_DIR/com.system76.CosmicSettings.Wallpaper/v1"
 
 # Point the background of every display at an image or a folder.
-set_background() {
-    local source=$1 rotation=${2:-3600}
-    cosmic_set com.system76.CosmicBackground same-on-all true
-    strip_ron_comments "$REPO_DIR/config/cosmic/background-all.ron" |
-        sed -e "s#@SOURCE@#$source#" -e "s#@ROTATION@#$rotation#" \
-        > "$COSMIC_DIR/com.system76.CosmicBackground/v1/all"
-}
-
+set_background() { ctp background set "$@"; }
 
 if [ "$WALLPAPER_STYLE" != all ]; then
     info "Wallpaper ($FLAVOR, $ACCENT accent, $WALLPAPER_STYLE)"
@@ -49,9 +42,8 @@ ctp register-wallpaper-folder "$settings" "$WALLPAPER_DIR"
 ok "Folder added to Settings → Wallpaper"
 
 if [ -n "$ROTATE_SECONDS" ]; then
-    # Keep the Settings dropdown in sync with the interval actually used.
-    printf '%s' "$ROTATE_SECONDS" > "$settings/rotation-frequency"
-    set_background "$WALLPAPER_DIR" "$ROTATE_SECONDS"
+    # Also keeps the Settings dropdown in sync with the interval used.
+    set_background "$WALLPAPER_DIR" --rotation "$ROTATE_SECONDS"
     ok "Background: slideshow of $WALLPAPER_DIR every $WALLPAPER_ROTATE"
 else
     todo "Background unchanged. Pick an image or turn on the slideshow in"

@@ -154,6 +154,3 @@ cosmic_set() {
     mkdir -p "$COSMIC_DIR/$component/v1"
     printf '%s' "$value" > "$COSMIC_DIR/$component/v1/$key"
 }
-
-# Strip // comments from one of the repo's RON files before installing it.
-strip_ron_comments() { sed -e 's#[[:space:]]*//.*$##' -e '/^[[:space:]]*$/d' "$1"; }

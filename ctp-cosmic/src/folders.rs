@@ -17,7 +17,7 @@ SETTINGS_DIR is ~/.config/cosmic/com.system76.CosmicSettings.Wallpaper/v1.
 ";
 
 /// A RON string literal.
-fn quote(s: &str) -> String {
+pub fn quote(s: &str) -> String {
     format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
