@@ -47,9 +47,12 @@ interactive() {
         [ -z "${!v:-}" ] || return 1
     done
 }
+# Decide before sourcing lib.sh: it sets FLAVOR, ACCENT and the like to their
+# defaults, which interactive() would take for options given by the user.
+want_tui=0; ! interactive "$@" || want_tui=1
 # shellcheck source=scripts/lib.sh
 source ./lib.sh   # finds (or builds) ctp-cosmic
-if interactive "$@"; then
+if [ "$want_tui" = 1 ]; then
     exec "$CTP_BIN" tui --repo "$REPO_DIR"
 fi
 
