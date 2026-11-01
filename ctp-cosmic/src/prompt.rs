@@ -58,7 +58,7 @@ fn read_bashrc(path: &PathBuf) -> Result<String, String> {
     }
 }
 
-fn install(flavor: &str, accent: &str) -> Result<(), String> {
+pub fn install(flavor: &str, accent: &str) -> Result<(), String> {
     let p = palette::check(flavor, Some(accent))?;
     let home = home()?;
     let dir = home.join(".config/catppuccin");
@@ -72,7 +72,7 @@ fn install(flavor: &str, accent: &str) -> Result<(), String> {
     fs::write(&bashrc, text).map_err(|e| format!("{}: {e}", bashrc.display()))
 }
 
-fn remove() -> Result<(), String> {
+pub fn remove() -> Result<(), String> {
     let bashrc = home()?.join(".bashrc");
     let text = read_bashrc(&bashrc)?;
     if text.contains(START) {

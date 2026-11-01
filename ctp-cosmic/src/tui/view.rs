@@ -315,7 +315,7 @@ fn capitalize(s: &str) -> String {
 
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-/// The progress screen while (and after) setup.sh runs.
+/// The progress screen while (and after) apply runs.
 pub fn draw_progress(f: &mut Frame, cfg: &Config, p: &Progress, tick: usize) {
     let t = Theme::of(cfg);
     f.render_widget(Block::new().style(t.base()), f.area());
@@ -407,7 +407,7 @@ pub fn draw_progress(f: &mut Frame, cfg: &Config, p: &Progress, tick: usize) {
         Some(0) => (&[("q", "quit")], Some("Done.".into())),
         Some(code) => (
             &[("q", "quit")],
-            Some(format!("setup.sh failed (exit {code}); see the log")),
+            Some(format!("apply failed (exit {code}); see the log")),
         ),
     };
     footer(f, foot, t, keys, msg.as_deref());

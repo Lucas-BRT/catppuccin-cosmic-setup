@@ -4,6 +4,7 @@
 //! (for the shell scripts), desktop themes in the COSMIC 1.10 format, and
 //! procedural wallpapers. Colors come from the official `catppuccin` crate.
 
+mod apply;
 mod background;
 mod backup;
 mod folders;
@@ -17,6 +18,9 @@ mod styles;
 mod terminal;
 mod theme;
 mod tui;
+mod ui;
+mod uninstall;
+mod update;
 mod wallpaper;
 mod zed;
 
@@ -26,20 +30,19 @@ const USAGE: &str = "\
 ctp-cosmic: Catppuccin for the COSMIC desktop
 
 Usage:
-  ctp-cosmic backup ...                      back up and restore what the installer changes
-  ctp-cosmic background ...                  set the wallpaper of every display
-  ctp-cosmic icons ...                       Papirus with Catppuccin folders
-  ctp-cosmic palette ...                     palette lookups for scripts
+  ctp-cosmic [apply] ...                     put Catppuccin on the desktop, terminal,
+                                             prompt, Zed, icons and wallpaper
+                                             (interactive in a terminal, no options)
+  ctp-cosmic update ...                      install the latest release
+  ctp-cosmic uninstall ...                   undo the last apply
   ctp-cosmic theme ...                       desktop themes (COSMIC 1.10)
   ctp-cosmic wallpaper ...                   procedural wallpapers
-  ctp-cosmic register-wallpaper-folder ...   add a folder to COSMIC's wallpaper picker
-  ctp-cosmic prompt ...                      bash prompt and its ~/.bashrc block
-  ctp-cosmic steps ...                       the installer steps (setup.sh reads them)
-  ctp-cosmic terminal ...                    COSMIC Terminal color schemes
-  ctp-cosmic zed ...                         configure Zed settings (theme and icon theme)
-  ctp-cosmic tui --repo DIR                  interactive setup (setup.sh opens it)
+  ctp-cosmic terminal ...                    COSMIC Terminal color schemes and font
+  ctp-cosmic palette ...                     palette lookups
   ctp-cosmic --version
 
+The pieces apply is made of are commands too: backup, background, icons,
+prompt, register-wallpaper-folder, zed.
 Run `ctp-cosmic <command> --help` for each command's options.
 ";
 
@@ -48,6 +51,9 @@ fn main() -> ExitCode {
     let command = args.next().unwrap_or_default();
     let rest: Vec<String> = args.collect();
     let result = match command.as_str() {
+        "apply" => apply::main(rest),
+        "uninstall" => uninstall::main(rest).map(|()| 0),
+        "update" => update::main(rest),
         "backup" => backup::main(rest).map(|()| 0),
         "background" => background::main(rest).map(|()| 0),
         "icons" => icons::main(rest).map(|()| 0),
@@ -56,7 +62,6 @@ fn main() -> ExitCode {
         "wallpaper" => wallpaper::main(rest).map(|()| 0),
         "register-wallpaper-folder" => folders::main(rest).map(|()| 0),
         "prompt" => prompt::main(rest).map(|()| 0),
-        "steps" => steps::main(rest).map(|()| 0),
         "terminal" => terminal::main(rest),
         "zed" => zed::main(rest).map(|()| 0),
         "tui" => tui::main(rest),
@@ -68,7 +73,7 @@ fn main() -> ExitCode {
             print!("{USAGE}");
             Ok(0)
         }
-        "" => Err(format!("missing command\n\n{USAGE}")),
+        "" => apply::main(rest),
         other => Err(format!("unknown command '{other}'\n\n{USAGE}")),
     };
     match result {

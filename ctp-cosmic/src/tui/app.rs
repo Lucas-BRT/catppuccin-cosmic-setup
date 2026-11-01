@@ -59,7 +59,7 @@ pub fn fields() -> Vec<Field> {
     f
 }
 
-/// What the user chose, turned into setup.sh arguments and environment.
+/// What the user chose, turned into `apply` arguments and environment.
 #[derive(Clone, Debug)]
 pub struct Config {
     pub flavor: usize,
@@ -92,6 +92,31 @@ impl Default for Config {
     }
 }
 
+impl Config {
+    /// The configuration screen set to previously saved choices.
+    pub fn from_opts(o: &crate::apply::Opts, mut fonts: Vec<String>) -> Self {
+        fonts.insert(0, KEEP_FONT.to_string());
+        let find = |list: &[&str], v: &str| list.iter().position(|x| *x == v).unwrap_or(0);
+        let rotate = o.rotate.as_deref().map_or(0, |r| find(&ROTATE, r));
+        Self {
+            flavor: find(&palette::flavors(), &o.flavor),
+            accent: find(&palette::accents(), &o.accent),
+            frosted: find(&FROSTED, &o.frosted),
+            style: find(&wallpaper_choices(), &o.style),
+            rotate,
+            font: o
+                .font
+                .as_ref()
+                .and_then(|f| fonts.iter().position(|x| x == f))
+                .unwrap_or(0),
+            fonts,
+            steps: STEPS
+                .each_ref()
+                .map(|s| o.steps.iter().any(|n| n == s.name)),
+        }
+    }
+}
+
 pub fn wallpaper_choices() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = styles::list().iter().map(|(n, _)| *n).collect();
     v.push("all");
@@ -112,7 +137,7 @@ impl Config {
         self.style_id() == "all"
     }
 
-    /// Step names to pass to setup.sh, in installer order.
+    /// Step names to pass to `apply`, in installer order.
     pub fn step_args(&self) -> Vec<String> {
         STEPS
             .iter()
@@ -122,7 +147,7 @@ impl Config {
             .collect()
     }
 
-    /// Environment for setup.sh.
+    /// Environment for `apply`.
     pub fn env(&self) -> Vec<(&'static str, String)> {
         let mut env = vec![
             ("FLAVOR", self.flavor_id().to_string()),
@@ -225,7 +250,7 @@ impl Setup {
     }
 }
 
-/// Progress of one step while setup.sh runs.
+/// Progress of one step while `apply` runs.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Status {
     Pending,
@@ -241,7 +266,7 @@ pub struct StepProgress {
     pub status: Status,
 }
 
-/// The progress screen: fed setup.sh's output line by line.
+/// The progress screen: fed apply's output line by line.
 pub struct Progress {
     pub steps: Vec<StepProgress>,
     pub log: Vec<(bool, String)>, // (from stderr, text)
@@ -251,7 +276,7 @@ pub struct Progress {
     warned: bool,
 }
 
-/// Remove ANSI escape sequences (setup.sh colors its messages).
+/// Remove ANSI escape sequences (apply colors its messages).
 pub fn strip_ansi(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut chars = s.chars().peekable();
@@ -301,7 +326,7 @@ impl Progress {
         }
     }
 
-    /// Which step an setup.sh "==> ..." header starts.
+    /// Which step an `apply` "==> ..." header starts.
     fn step_for_header(header: &str) -> Option<&'static str> {
         let rules: [(&str, &str); 7] = [
             ("Backing up", "backup"),
@@ -399,6 +424,34 @@ mod tests {
     fn slideshow_intervals_are_valid() {
         for label in &ROTATE[1..] {
             assert!(crate::steps::rotate_seconds(label).is_ok(), "{label}");
+        }
+    }
+
+    #[test]
+    fn saved_choices_fill_the_screen() {
+        let o = crate::apply::Opts {
+            flavor: "latte".into(),
+            accent: "peach".into(),
+            frosted: "medium".into(),
+            style: "all".into(),
+            rotate: Some("30m".into()),
+            font: Some("Fira Mono".into()),
+            steps: vec!["bash".into(), "icons".into()],
+            ..Default::default()
+        };
+        let c = Config::from_opts(&o, vec!["Fira Mono".into()]);
+        assert_eq!(
+            (c.flavor_id(), c.accent_id(), c.style_id()),
+            ("latte", "peach", "all")
+        );
+        assert_eq!(c.step_args(), ["bash", "icons"]);
+        let env = c.env();
+        for (k, v) in [
+            ("FROSTED", "medium"),
+            ("WALLPAPER_ROTATE", "30m"),
+            ("TERMINAL_FONT", "Fira Mono"),
+        ] {
+            assert!(env.contains(&(k, v.to_string())), "{k}");
         }
     }
 

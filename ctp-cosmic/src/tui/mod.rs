@@ -1,15 +1,14 @@
 //! `ctp-cosmic tui`: interactive setup. Pick flavor, accent, Frosted Glass,
-//! wallpaper and steps with a live preview, then watch setup.sh run.
+//! wallpaper and steps with a live preview, then watch `apply` run.
 //!
-//! setup.sh opens this when it runs in a terminal with no options; the
-//! choices are passed back to setup.sh as arguments and environment
-//! variables, so the TUI and scripted installs run exactly the same code.
+//! `ctp-cosmic apply` opens this when it runs in a terminal with no options;
+//! the choices are passed to a child `apply` as arguments and environment
+//! variables, so the TUI and scripted runs execute exactly the same code.
 
 mod app;
 mod view;
 
 use std::io::{BufRead, BufReader};
-use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -23,29 +22,30 @@ const USAGE: &str = "\
 ctp-cosmic tui: interactive Catppuccin setup
 
 Usage:
-  ctp-cosmic tui [--repo DIR]   DIR holds setup.sh (the setup to run);
-                                default: the copy install.sh unpacked in
-                                ~/.local/share/catppuccin-cosmic-setup/current
+  ctp-cosmic tui
 
-setup.sh opens this by itself when run in a terminal without options.
+`ctp-cosmic` (or `ctp-cosmic apply`) opens this by itself when run in a
+terminal without options. It starts from your last successful choices.
 ";
 
-/// One line of setup.sh output: (from stderr, text).
+/// One line of `apply` output: (from stderr, text).
 type Msg = (bool, String);
 
 /// The rendered wallpaper preview and what it shows:
 /// (flavor, accent, style, width, height).
 type PreviewCache = Option<((usize, usize, usize, usize, usize), Vec<u8>)>;
 
-/// Start setup.sh with the chosen options, streaming its output.
-fn spawn(repo: &Path, cfg: &Config, tx: mpsc::Sender<Msg>) -> Result<std::process::Child, String> {
-    let mut cmd = Command::new(repo.join("setup.sh"));
-    cmd.args(cfg.step_args())
+/// Start `apply` with the chosen options, streaming its output.
+fn spawn(cfg: &Config, tx: mpsc::Sender<Msg>) -> Result<std::process::Child, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let mut cmd = Command::new(exe);
+    cmd.arg("apply")
+        .args(cfg.step_args())
         .envs(cfg.env())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = cmd.spawn().map_err(|e| format!("setup.sh: {e}"))?;
+    let mut child = cmd.spawn().map_err(|e| format!("apply: {e}"))?;
     for (is_err, pipe) in [
         (
             false,
@@ -98,7 +98,7 @@ fn summary(cfg: &Config, p: &Progress) -> String {
         }
     }
     if let Some(code) = p.exit.filter(|c| *c != 0) {
-        out.push_str(&format!("setup.sh failed (exit {code}). Last lines:\n"));
+        out.push_str(&format!("apply failed (exit {code}). Last lines:\n"));
         for (_, l) in p
             .log
             .iter()
@@ -114,10 +114,18 @@ fn summary(cfg: &Config, p: &Progress) -> String {
     out
 }
 
-fn run(terminal: &mut DefaultTerminal, repo: &Path) -> Result<Option<(Config, Progress)>, String> {
+fn run(terminal: &mut DefaultTerminal) -> Result<Option<(Config, Progress)>, String> {
     let io = |e: std::io::Error| e.to_string();
     let mut setup = Setup::default();
-    setup.cfg.fonts.extend(crate::terminal::installed_fonts());
+    let fonts = crate::terminal::installed_fonts();
+    // Start from the last successful choices, if there are any.
+    setup.cfg = match crate::apply::load_state() {
+        Ok(last) => Config::from_opts(&last, fonts),
+        Err(_) => {
+            setup.cfg.fonts.extend(fonts);
+            setup.cfg
+        }
+    };
     // Cache the preview: only re-render when what it shows changes.
     let mut cache: PreviewCache = None;
 
@@ -162,7 +170,7 @@ fn run(terminal: &mut DefaultTerminal, repo: &Path) -> Result<Option<(Config, Pr
     let backup = std::env::var("NO_BACKUP").map(|v| v != "1").unwrap_or(true);
     let mut progress = Progress::new(&cfg, backup);
     let (tx, rx) = mpsc::channel();
-    let mut child = spawn(repo, &cfg, tx)?;
+    let mut child = spawn(&cfg, tx)?;
     let started = Instant::now();
     loop {
         while let Ok((err, l)) = rx.try_recv() {
@@ -199,30 +207,17 @@ fn run(terminal: &mut DefaultTerminal, repo: &Path) -> Result<Option<(Config, Pr
     }
 }
 
-/// Where install.sh unpacks the setup.
-fn default_repo() -> Result<PathBuf, String> {
-    let data = match std::env::var_os("XDG_DATA_HOME") {
-        Some(d) if !d.is_empty() => PathBuf::from(d),
-        _ => PathBuf::from(std::env::var_os("HOME").ok_or("HOME not set")?).join(".local/share"),
-    };
-    Ok(data.join("catppuccin-cosmic-setup/current"))
-}
-
 pub fn main(args: Vec<String>) -> Result<u8, String> {
-    let repo = match args.as_slice() {
-        [] => default_repo()?,
-        [flag, dir] if flag == "--repo" => PathBuf::from(dir),
+    match args.as_slice() {
+        [] => {}
         [h] if h == "-h" || h == "--help" => {
             print!("{USAGE}");
             return Ok(0);
         }
         _ => return Err(format!("invalid arguments\n\n{USAGE}")),
-    };
-    if !repo.join("setup.sh").is_file() {
-        return Err(format!("{}: no setup.sh here", repo.display()));
     }
     let mut terminal = ratatui::try_init().map_err(|e| format!("cannot open the terminal: {e}"))?;
-    let result = run(&mut terminal, &repo);
+    let result = run(&mut terminal);
     ratatui::restore();
     match result? {
         None => {

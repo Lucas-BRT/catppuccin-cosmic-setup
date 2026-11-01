@@ -25,11 +25,12 @@ install directly instead, pass the options:
 curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | FLAVOR=latte ACCENT=blue bash
 ```
 
-The `ctp-cosmic` binary is installed in `~/.local/bin`: run
-`ctp-cosmic tui` later to change flavor, accent or steps without the script.
+The `ctp-cosmic` binary is installed in `~/.local/bin`: run `ctp-cosmic`
+later to change flavor, accent or steps, `ctp-cosmic update` to get a newer
+release.
 
-Your settings are backed up first, and
-`~/.local/share/catppuccin-cosmic-setup/current/uninstall.sh` restores them.
+Your settings are backed up first, and `ctp-cosmic uninstall` puts back
+exactly what the install changed.
 Options and wallpaper styles are in
 [docs/USAGE.md](docs/USAGE.md).
 

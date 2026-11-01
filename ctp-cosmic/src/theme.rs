@@ -397,10 +397,105 @@ then imports the chosen one with `cosmic-settings appearance import` unless
 --no-apply. Prints what Frosted Glass is set to, then the theme file.
 ";
 
+/// What `theme install` needs; `frosted` is "auto", "off" or a strength.
+pub struct InstallOpts {
+    pub flavor: String,
+    pub accent: String,
+    pub alpha_offset: f64,
+    pub frosted: String,
+    pub frost_on: Option<Vec<String>>,
+    pub apply: bool,
+    pub config: PathBuf,
+    pub data: PathBuf,
+}
+
+impl InstallOpts {
+    /// The theme options this resolves to, given COSMIC's current Frosted
+    /// Glass and density.
+    fn resolve(&self) -> Result<Options, String> {
+        let mut o = Options {
+            flavor: self.flavor.clone(),
+            accent: self.accent.clone(),
+            alpha_offset: self.alpha_offset,
+            ..Options::default()
+        };
+        let dark = palette::check(&o.flavor, Some(&o.accent))?.is_dark();
+        let builder = self.config.join(format!(
+            "com.system76.CosmicTheme.{}.Builder/v2",
+            if dark { "Dark" } else { "Light" }
+        ));
+        let default_on = || FROST_DEFAULT.iter().map(|s| s.to_string()).collect();
+        (o.frosted, o.frost_on) = match (self.frosted.as_str(), current_frost(&builder)) {
+            ("off", _) | ("auto", None) => (None, default_on()),
+            ("auto", Some((strength, on))) => (Some(strength), on),
+            (strength, _) => (
+                Some(strength.to_string()),
+                self.frost_on.clone().unwrap_or_else(default_on),
+            ),
+        };
+        o.density = current_density(&self.config);
+        validate(&o)?;
+        Ok(o)
+    }
+}
+
+/// Fails early on a bad --frosted / --frost-on, before anything is changed.
+pub fn check_frost(frosted: &str, frost_on: Option<&[String]>) -> Result<(), String> {
+    let o = InstallOpts {
+        flavor: "mocha".into(),
+        accent: "mauve".into(),
+        alpha_offset: 0.0,
+        frosted: frosted.into(),
+        frost_on: frost_on.map(<[String]>::to_vec),
+        apply: false,
+        config: PathBuf::from("/nonexistent"),
+        data: PathBuf::new(),
+    };
+    o.resolve().map(drop)
+}
+
+/// Writes every theme plus the chosen one and (unless `apply` is off)
+/// imports it. Returns the Frosted Glass label and the theme file.
+pub fn install_theme(i: &InstallOpts) -> Result<(String, PathBuf), String> {
+    let o = i.resolve()?;
+    // The generic set for manual import; its own defaults, not this choice.
+    write_all(&i.data, &Options::default())?;
+    let theme = i
+        .data
+        .join(format!("catppuccin-{}-{}+custom.ron", o.flavor, o.accent));
+    std::fs::write(&theme, build(&o)).map_err(|e| format!("{}: {e}", theme.display()))?;
+    let label = match &o.frosted {
+        Some(f) => format!("Frosted Glass {f} on {}", o.frost_on.join(",")),
+        None => "solid".to_string(),
+    };
+    if i.apply {
+        let status = std::process::Command::new("cosmic-settings")
+            .args(["appearance", "import"])
+            .arg(&theme)
+            .stdout(std::process::Stdio::null())
+            .status()
+            .map_err(|e| format!("cosmic-settings: {e}"))?;
+        if !status.success() {
+            return Err(format!(
+                "cosmic-settings appearance import failed ({status})"
+            ));
+        }
+    }
+    Ok((label, theme))
+}
+
 fn install(args: Vec<String>) -> Result<(), String> {
-    let mut o = Options::default();
-    let (mut frosted, mut frost_on) = ("auto".to_string(), None::<Vec<String>>);
-    let (mut apply, mut config, mut data) = (true, None::<PathBuf>, None::<PathBuf>);
+    let mut i = InstallOpts {
+        flavor: "mocha".into(),
+        accent: "mauve".into(),
+        alpha_offset: 0.0,
+        frosted: "auto".into(),
+        frost_on: None,
+        apply: true,
+        config: PathBuf::new(),
+        data: PathBuf::new(),
+    };
+    let (mut config, mut data) = (None::<PathBuf>, None::<PathBuf>);
     let mut it = args.into_iter();
     while let Some(arg) = it.next() {
         let mut value = |name: &str| it.next().ok_or(format!("{name} needs a value"));
@@ -409,17 +504,17 @@ fn install(args: Vec<String>) -> Result<(), String> {
                 print!("{INSTALL_USAGE}");
                 return Ok(());
             }
-            "--flavor" => o.flavor = value("--flavor")?,
-            "--accent" => o.accent = value("--accent")?,
+            "--flavor" => i.flavor = value("--flavor")?,
+            "--accent" => i.accent = value("--accent")?,
             "--alpha-offset" => {
                 let v = value("--alpha-offset")?;
-                o.alpha_offset = v
+                i.alpha_offset = v
                     .parse()
                     .map_err(|_| format!("invalid --alpha-offset '{v}'"))?;
             }
-            "--frosted" => frosted = value("--frosted")?,
+            "--frosted" => i.frosted = value("--frosted")?,
             "--frost-on" => {
-                frost_on = Some(
+                i.frost_on = Some(
                     value("--frost-on")?
                         .split(',')
                         .map(|s| s.trim().to_string())
@@ -427,7 +522,7 @@ fn install(args: Vec<String>) -> Result<(), String> {
                         .collect(),
                 )
             }
-            "--no-apply" => apply = false,
+            "--no-apply" => i.apply = false,
             "--config" => config = Some(value("--config")?.into()),
             "--data-dir" => data = Some(value("--data-dir")?.into()),
             s => return Err(format!("unexpected argument '{s}'\n\n{INSTALL_USAGE}")),
@@ -438,59 +533,18 @@ fn install(args: Vec<String>) -> Result<(), String> {
             .map(PathBuf::from)
             .ok_or("HOME not set".to_string())
     };
-    let config = match config {
+    i.config = match config {
         Some(c) => c,
         None => home()?.join(".config/cosmic"),
     };
-    let data = match data {
+    i.data = match data {
         Some(d) => d,
         None => home()?.join(".local/share/catppuccin/themes/cosmic-settings"),
     };
-
-    let dark = palette::check(&o.flavor, Some(&o.accent))?.is_dark();
-    let builder = config.join(format!(
-        "com.system76.CosmicTheme.{}.Builder/v2",
-        if dark { "Dark" } else { "Light" }
-    ));
-    let current = current_frost(&builder);
-    let default_on = || FROST_DEFAULT.iter().map(|s| s.to_string()).collect();
-    (o.frosted, o.frost_on) = match (frosted.as_str(), current) {
-        ("off", _) | ("auto", None) => (None, default_on()),
-        ("auto", Some((strength, on))) => (Some(strength), on),
-        (strength, _) => (
-            Some(strength.to_string()),
-            frost_on.unwrap_or_else(default_on),
-        ),
-    };
-    o.density = current_density(&config);
-    validate(&o)?;
-
-    // The generic set for manual import; its own defaults, not this choice.
-    write_all(&data, &Options::default())?;
-    let theme = data.join(format!("catppuccin-{}-{}+custom.ron", o.flavor, o.accent));
-    std::fs::write(&theme, build(&o)).map_err(|e| format!("{}: {e}", theme.display()))?;
-
-    println!(
-        "{}",
-        match &o.frosted {
-            Some(f) => format!("Frosted Glass {f} on {}", o.frost_on.join(",")),
-            None => "solid".to_string(),
-        }
-    );
+    let (label, theme) = install_theme(&i)?;
+    println!("{label}");
     println!("{}", theme.display());
-    if !apply {
-        return Ok(());
-    }
-    let status = std::process::Command::new("cosmic-settings")
-        .args(["appearance", "import"])
-        .arg(&theme)
-        .stdout(std::process::Stdio::null())
-        .status()
-        .map_err(|e| format!("cosmic-settings: {e}"))?;
-    status
-        .success()
-        .then_some(())
-        .ok_or_else(|| format!("cosmic-settings appearance import failed ({status})"))
+    Ok(())
 }
 
 pub fn main(args: Vec<String>) -> Result<(), String> {

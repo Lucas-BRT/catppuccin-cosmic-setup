@@ -15,12 +15,14 @@ ctp-cosmic backup: back up and restore what the installer changes
 
 Usage:
   ctp-cosmic backup create DIR             copy the files the installer may touch
-  ctp-cosmic backup seal [DIR]             record what the installer changed
+  ctp-cosmic backup seal DIR               record what the installer changed; DIR
+                                           becomes the last backup (or is removed
+                                           if nothing changed)
   ctp-cosmic backup restore [DIR] [--force]  undo it; --force also restores files
                                            changed since
   ctp-cosmic backup path                   the last backup's folder
 
-DIR defaults to the last backup made by `create`.
+DIR defaults, for restore, to the last backup that changed something.
 ";
 
 /// What the installer may touch, relative to $HOME.
@@ -163,40 +165,62 @@ fn restore_in(home: &Path, dir: &Path, force: bool) -> Result<(usize, Vec<String
     Ok((restored, kept))
 }
 
+/// Backs up the watched files into `dir`.
+pub fn create(dir: &Path) -> Result<usize, String> {
+    create_in(&home()?, dir, &WATCHED)
+}
+
+/// Records what changed since `create`. When something did, `dir` becomes the
+/// last backup, the one `restore` undoes; a run that changed nothing (the same
+/// choices applied again) leaves the previous one in place and `dir` is removed.
+pub fn seal(dir: &Path) -> Result<usize, String> {
+    let home = home()?;
+    let n = seal_in(&home, dir, &WATCHED)?.len();
+    if n == 0 {
+        io(fs::remove_dir_all(dir), dir)?;
+        return Ok(0);
+    }
+    let ptr = pointer(&home);
+    if let Some(parent) = ptr.parent() {
+        io(fs::create_dir_all(parent), parent)?;
+    }
+    io(fs::write(&ptr, format!("{}\n", dir.display())), &ptr)?;
+    Ok(n)
+}
+
+/// Undoes the install recorded in `dir` (default: the last backup). Returns
+/// the folder, how many files were restored and which were kept.
+pub fn restore(dir: Option<&Path>, force: bool) -> Result<(PathBuf, usize, Vec<String>), String> {
+    let home = home()?;
+    let dir = match dir {
+        Some(d) => d.to_path_buf(),
+        None => last(&home)?,
+    };
+    let (n, kept) = restore_in(&home, &dir, force)?;
+    Ok((dir, n, kept))
+}
+
 pub fn main(args: Vec<String>) -> Result<(), String> {
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
-    let home = home()?;
     match args[..] {
         ["create", dir] => {
-            let n = create_in(&home, Path::new(dir), &WATCHED)?;
-            let ptr = pointer(&home);
-            if let Some(parent) = ptr.parent() {
-                io(fs::create_dir_all(parent), parent)?;
-            }
-            io(fs::write(&ptr, format!("{dir}\n")), &ptr)?;
+            let n = create(Path::new(dir))?;
             println!("{n} files backed up to {dir}");
         }
-        ["seal"] | ["seal", _] => {
-            let dir = match args.get(1) {
-                Some(d) => PathBuf::from(d),
-                None => last(&home)?,
-            };
-            let lines = seal_in(&home, &dir, &WATCHED)?;
-            println!("{} files changed", lines.len());
+        ["seal", dir] => {
+            let n = seal(Path::new(dir))?;
+            println!("{n} files changed");
         }
         ["restore", ref rest @ ..] => {
             let force = rest.contains(&"--force");
-            let dir = match rest.iter().find(|a| **a != "--force") {
-                Some(d) => PathBuf::from(d),
-                None => last(&home)?,
-            };
-            let (restored, kept) = restore_in(&home, &dir, force)?;
+            let dir = rest.iter().find(|a| **a != "--force").map(Path::new);
+            let (dir, restored, kept) = restore(dir, force)?;
             println!("{restored} files restored from {}", dir.display());
             for k in &kept {
                 println!("kept (changed since the install): ~/{k}");
             }
         }
-        ["path"] => println!("{}", last(&home)?.display()),
+        ["path"] => println!("{}", last(&home()?)?.display()),
         [] | ["-h" | "--help"] => print!("{USAGE}"),
         _ => return Err(format!("bad arguments\n\n{USAGE}")),
     }

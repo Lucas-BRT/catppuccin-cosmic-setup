@@ -34,6 +34,8 @@ Options:
   -h, --help       show this help
 ";
 
+const DEFAULT_SIZE: (usize, usize) = (2560, 1440);
+
 struct Args {
     output: Option<PathBuf>,
     all: Option<PathBuf>,
@@ -67,7 +69,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Option<Args>, St
         style: "glow".into(),
         flavor: "mocha".into(),
         accent: "mauve".into(),
-        size: (2560, 1440),
+        size: DEFAULT_SIZE,
         thumb: (256, 144),
     };
     let mut it = args.into_iter();
@@ -183,15 +185,28 @@ fn run(a: &Args) -> Result<(), String> {
         return preview(out, &a.accent, a.thumb);
     }
     let dir = a.all.as_ref().expect("one mode is set");
+    render_all(dir, &a.flavor, &a.accent, a.size)
+}
+
+/// One wallpaper at the default size.
+pub fn render_to(path: &Path, style: &str, flavor: &str, accent: &str) -> Result<(), String> {
+    let (w, h) = DEFAULT_SIZE;
+    image::write_png(path, w, h, &render_one(style, flavor, accent, (w, h)))
+}
+
+/// Every style into `dir`, named catppuccin-<flavor>-<accent>-<style>.png.
+pub fn render_all(
+    dir: &Path,
+    flavor: &str,
+    accent: &str,
+    (w, h): (usize, usize),
+) -> Result<(), String> {
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     // Rows are rendered in parallel inside each image, and the images run in
     // parallel too so their (single-threaded) PNG compression overlaps.
     styles::list().par_iter().try_for_each(|(style, _)| {
-        save(
-            &dir.join(format!("catppuccin-{}-{}-{style}.png", a.flavor, a.accent)),
-            style,
-            a,
-        )
+        let path = dir.join(format!("catppuccin-{flavor}-{accent}-{style}.png"));
+        image::write_png(&path, w, h, &render_one(style, flavor, accent, (w, h)))
     })
 }
 

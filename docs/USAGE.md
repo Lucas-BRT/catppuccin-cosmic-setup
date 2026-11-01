@@ -4,70 +4,63 @@
 
 ## Running it
 
-The [install command](../README.md#install) downloads the latest release
-into `~/.local/share/catppuccin-cosmic-setup/current/` and runs
-`setup.sh` from there. It also installs `ctp-cosmic` into `~/.local/bin`, so
-you can reopen the interactive setup later with just `ctp-cosmic tui`.
-
-In a terminal, with no options, it opens an interactive setup: pick the
-flavor, accent, Frosted Glass, wallpaper and steps with a live preview,
-press **Enter** to install, and follow each step as it runs. Keys:
-**↑↓** move, **←→** or **space** change, **enter** install, **q** quit.
-
-Passing any option or step skips the interface and runs directly, which is
-also what happens without a terminal (`NO_TUI=1` forces it). Options are
-environment variables, and steps can be run on their own:
+The [install command](../README.md#install) downloads the latest `ctp-cosmic`
+into `~/.local/bin` and runs `ctp-cosmic apply`. From then on `ctp-cosmic` is
+all you need:
 
 ```bash
-curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | bash -s -- bash wallpaper
+ctp-cosmic                    # interactive setup (in a terminal, no options)
+ctp-cosmic apply --last       # repeat the last successful choices
+ctp-cosmic update             # install the latest release (--check, --apply)
+ctp-cosmic uninstall          # undo the last apply
+```
 
-cd ~/.local/share/catppuccin-cosmic-setup/current
-./setup.sh --list              # list the steps
-FLAVOR=frappe ./setup.sh bash  # rerun one step with another flavor
+The interactive setup starts from your last choices: pick the flavor, accent,
+Frosted Glass, wallpaper, terminal font and steps with a live preview, press
+**Enter** to apply, and follow each step as it runs. Keys: **↑↓** move,
+**←→** or **space** change, **enter** apply, **q** quit.
+
+Passing any option or step skips the interface and runs directly, which is
+also what happens without a terminal (`NO_TUI=1` forces it). Every option is
+a flag or an environment variable (flags win), and steps can be named:
+
+```bash
+ctp-cosmic apply --list                       # list the steps
+ctp-cosmic apply --flavor frappe bash         # one step with another flavor
+FLAVOR=latte ACCENT=blue ctp-cosmic apply
+curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | bash -s -- bash wallpaper
 ```
 
 ### From a git clone
 
-`./setup.sh` works the same and runs your own code: with `cargo` installed
-it builds `ctp-cosmic` from `ctp-cosmic/` (first time about a minute, then
-only what changed) into `~/.cache/catppuccin-cosmic-setup/target`. Without
-`cargo` it uses the release pinned in `ctp-cosmic/RELEASE`.
-
 ```bash
-./setup.sh                     # interactive setup, or all default steps
-./setup.sh --list
-FLAVOR=latte ./setup.sh bash terminal
-./uninstall.sh
-
-# the Rust tool alone (no scripts), straight from the source
+cargo run --release --manifest-path ctp-cosmic/Cargo.toml            # interactive
+cargo run --release --manifest-path ctp-cosmic/Cargo.toml -- apply --list
 cargo run --release --manifest-path ctp-cosmic/Cargo.toml -- theme --help
-cargo run --release --manifest-path ctp-cosmic/Cargo.toml -- tui --repo .
 cd ctp-cosmic && cargo test && cargo clippy --all-targets -- -D warnings
 ```
 
-`ctp-cosmic` in `~/.local/bin` (put there by `install.sh`) is a separate
-copy: `ctp-cosmic tui` without `--repo` runs the setup unpacked in
-`~/.local/share/catppuccin-cosmic-setup/current`, not your clone.
+A cargo build is separate from the `ctp-cosmic` in `~/.local/bin`; `update`
+refuses to run from a cargo build.
 
 ## Options
 
-| Variable | Default | |
-| --- | --- | --- |
-| `FLAVOR` | `mocha` | `latte`, `frappe`, `macchiato`, `mocha` |
-| `ACCENT` | `mauve` | `rosewater`, `flamingo`, `pink`, `mauve`, `red`, `maroon`, `peach`, `yellow`, `green`, `teal`, `sky`, `sapphire`, `blue`, `lavender` |
-| `FROSTED` | `auto` | `auto` keeps your current Frosted Glass setting, `off` disables it, or a strength from `extremely_low` to `extremely_high_2` |
-| `FROST_ON` | all but `maximized_apps` | where Frosted Glass applies: `windows`, `system_interface`, `panel`, `applets`, `maximized_apps` |
-| `ALPHA_OFFSET` | `0` | Frosted Glass opacity tweak (`0.1` more opaque, `-0.1` more transparent) |
-| `WALLPAPER_STYLE` | `glow` | a wallpaper style, or `all` (see [Wallpapers](#wallpapers)) |
-| `WALLPAPER_ROTATE` | | slideshow interval for `WALLPAPER_STYLE=all`: `5m` `10m` `15m` `30m` `1h` `2h` |
-| `NO_APPLY` | `0` | `1` generates the desktop theme without applying it |
-| `TERMINAL_FONT` | | COSMIC Terminal font family, e.g. `JetBrainsMono Nerd Font`; list yours with `ctp-cosmic terminal font list`. The default font lacks many icons, so a [Nerd Font](https://www.nerdfonts.com) fits well (install it first). Also a row in the interactive setup |
-| `TERMINAL_FONT_SIZE` | | size for `TERMINAL_FONT` (4 to 96) |
-| `NO_BACKUP` | `0` | `1` skips the backup |
-| `BUILD_FROM_SOURCE` | `0` | `1` builds `ctp-cosmic` with `cargo` instead of downloading it |
-| `NO_TUI` | `0` | `1` never opens the interactive setup |
+| Variable | Flag | Default | |
+| --- | --- | --- | --- |
+| `FLAVOR` | `--flavor` | `mocha` | `latte`, `frappe`, `macchiato`, `mocha` |
+| `ACCENT` | `--accent` | `mauve` | `rosewater`, `flamingo`, `pink`, `mauve`, `red`, `maroon`, `peach`, `yellow`, `green`, `teal`, `sky`, `sapphire`, `blue`, `lavender` |
+| `FROSTED` | `--frosted` | `auto` | `auto` keeps your current Frosted Glass setting, `off` disables it, or a strength from `extremely_low` to `extremely_high_2` |
+| `FROST_ON` | `--frost-on` | all but `maximized_apps` | where Frosted Glass applies: `windows`, `system_interface`, `panel`, `applets`, `maximized_apps` |
+| `ALPHA_OFFSET` | `--alpha-offset` | `0` | Frosted Glass opacity tweak (`0.1` more opaque, `-0.1` more transparent) |
+| `WALLPAPER_STYLE` | `--wallpaper-style` | `glow` | a wallpaper style, or `all` (see [Wallpapers](#wallpapers)) |
+| `WALLPAPER_ROTATE` | `--wallpaper-rotate` | | slideshow interval for `WALLPAPER_STYLE=all`: `5m` `10m` `15m` `30m` `1h` `2h` |
+| `NO_APPLY` | `--no-apply` | `0` | `1` generates the desktop theme without applying it |
+| `TERMINAL_FONT` | `--font` | | COSMIC Terminal font family, e.g. `JetBrainsMono Nerd Font`; list yours with `ctp-cosmic terminal font list`. The default font lacks many icons, so a [Nerd Font](https://www.nerdfonts.com) fits well (install it first). Also a row in the interactive setup |
+| `TERMINAL_FONT_SIZE` | `--font-size` | | size for `TERMINAL_FONT` (4 to 96) |
+| `NO_BACKUP` | `--no-backup` | `0` | `1` skips the backup |
+| `NO_TUI` | | `0` | `1` never opens the interactive setup |
 
-Invalid values stop the installer before anything is changed. Latte is the
+Invalid values stop `apply` before anything is changed. Latte is the
 only light flavor: it switches COSMIC to light mode (and, with the optional
 icons step, uses the light Papirus icons).
 
@@ -99,7 +92,7 @@ keeps COSMIC's window buttons, and falls back to COSMIC's icons for anything
 Papirus lacks. Name the step to run it:
 
 ```bash
-./setup.sh icons
+ctp-cosmic apply icons
 curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | bash -s -- icons
 ```
 
@@ -147,13 +140,13 @@ Rows in the [preview](previews.png) follow this order:
 | `mountains` | mountain ridges under a moon |
 
 ```bash
-WALLPAPER_STYLE=sunset ./setup.sh wallpaper
+ctp-cosmic apply --wallpaper-style sunset wallpaper
 ```
 
 ### All styles in COSMIC's wallpaper picker
 
 ```bash
-WALLPAPER_STYLE=all ./setup.sh wallpaper
+ctp-cosmic apply --wallpaper-style all wallpaper
 ```
 
 Renders every style into `~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>/`
@@ -171,18 +164,17 @@ ctp-cosmic wallpaper --help
 
 ## Uninstalling
 
-From `~/.local/share/catppuccin-cosmic-setup/current/` (or your clone):
-
 ```bash
-./uninstall.sh                         # undo the last install
-./uninstall.sh ~/.config/catppuccin-backup-<date>
-PURGE=1 ./uninstall.sh                 # also delete icons, themes, wallpapers and this setup
+ctp-cosmic uninstall                   # undo the last apply that changed something
+ctp-cosmic uninstall ~/.config/catppuccin-backup-<date>
+ctp-cosmic uninstall --purge           # also delete icons, themes, wallpapers,
+                                       # the cache and ctp-cosmic itself
 ```
 
-Only the files the install changed go back, and only if they still hold
-what the install left: anything you or another app changed since is kept
-and listed. A backup that was not finished (the install was killed) or was
-made by an older version restores whole folders instead.
+Only the files the apply changed go back, and only if they still hold what
+it left: anything you or another app changed since is kept and listed
+(`--force` restores those too). An apply that changed nothing is not kept as
+a backup. Backups made by versions before 0.4 are not supported.
 
 Each backup also holds the previous desktop theme, which can be restored
 on its own:

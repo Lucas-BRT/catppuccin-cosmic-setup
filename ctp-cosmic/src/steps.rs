@@ -1,11 +1,10 @@
-//! The installer's steps and slideshow intervals: the single list that
-//! setup.sh, the scripts and the TUI all read.
+//! The steps `apply` runs and the slideshow intervals, shared by `apply`
+//! and the interactive setup.
 
-/// One installer step. `script` is the file under scripts/ that runs it.
+/// One step of `apply`.
 pub struct Step {
     pub name: &'static str,
     pub label: &'static str,
-    pub script: &'static str,
     /// Runs only when named explicitly; never part of the default selection.
     pub optional: bool,
 }
@@ -15,37 +14,31 @@ pub const STEPS: [Step; 6] = [
     Step {
         name: "cosmic",
         label: "Desktop theme",
-        script: "10-cosmic-theme.sh",
         optional: false,
     },
     Step {
         name: "terminal",
         label: "Terminal colors",
-        script: "20-terminal.sh",
         optional: false,
     },
     Step {
         name: "bash",
         label: "Bash prompt",
-        script: "30-bash-prompt.sh",
         optional: false,
     },
     Step {
         name: "zed",
         label: "Zed theme",
-        script: "40-zed.sh",
         optional: false,
     },
     Step {
         name: "icons",
         label: "Papirus icons (optional)",
-        script: "50-icons.sh",
         optional: true,
     },
     Step {
         name: "wallpaper",
         label: "Wallpaper",
-        script: "60-wallpaper.sh",
         optional: false,
     },
 ];
@@ -73,35 +66,6 @@ pub fn rotate_seconds(value: &str) -> Result<u32, String> {
                 labels.join(", ")
             )
         })
-}
-
-const USAGE: &str = "\
-ctp-cosmic steps: what setup.sh runs
-
-Usage:
-  ctp-cosmic steps list             name, script and required|optional, tab-separated
-  ctp-cosmic steps rotate VALUE     slideshow interval in seconds (5m ... 2h)
-";
-
-pub fn main(args: Vec<String>) -> Result<(), String> {
-    match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
-        ["list"] => {
-            for s in &STEPS {
-                let kind = if s.optional { "optional" } else { "required" };
-                println!("{}\t{}\t{kind}", s.name, s.script);
-            }
-            Ok(())
-        }
-        ["rotate", value] => {
-            println!("{}", rotate_seconds(value)?);
-            Ok(())
-        }
-        [] | ["-h" | "--help"] => {
-            print!("{USAGE}");
-            Ok(())
-        }
-        _ => Err(format!("bad arguments\n\n{USAGE}")),
-    }
 }
 
 #[cfg(test)]
