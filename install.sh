@@ -1,79 +1,96 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Installs Catppuccin (any flavor and accent; Mocha Mauve by default) on
-# Pop!_OS 24.04 with the COSMIC desktop.
+# catppuccin-cosmic-setup installer.
 #
-# Usage:
-#   ./install.sh                 # in a terminal: interactive setup (ctp-cosmic tui)
-#   ./install.sh icons wallpaper # only the listed steps, no questions
-#   ./install.sh --list          # list the steps
+#   curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | bash
 #
-# Without a terminal, or with any step or option below, everything runs
-# directly (every step by default), so scripted installs need no input.
+# Options are environment variables, steps are arguments:
+#   curl -fsSL .../install.sh | FLAVOR=latte ACCENT=blue bash
+#   curl -fsSL .../install.sh | bash -s -- icons wallpaper
 #
-# Optional variables:
-#   FLAVOR=mocha   ACCENT=mauve  # e.g. FLAVOR=latte ACCENT=lavender ./install.sh
-#   FROSTED=auto|off|medium|...  # Frosted Glass (default: keep the current setting)
-#   FROST_ON=windows,panel,...   # where Frosted Glass applies
-#   ALPHA_OFFSET=0.1             # more opaque (negative = more transparent)
-#   WALLPAPER_STYLE=waves        # glow (default), waves, stripes, dots, triangles,
-#                                # mesh, aurora, sunset, topography, mountains,
-#                                # or all: every style in a folder for the COSMIC picker
-#   WALLPAPER_ROTATE=30m         # with all: slideshow of that folder (5m ... 2h)
-#   NO_APPLY=1                   # only generate the theme, don't apply it
-#   NO_BACKUP=1                  # skip the backup
-#   BUILD_FROM_SOURCE=1          # build ctp-cosmic with cargo instead of
-#                                # downloading the prebuilt binary
-#   NO_TUI=1                     # never open the interactive setup
+# Downloads the release package for this machine, checks it against the
+# release's SHA256SUMS, unpacks it into ~/.local/share/catppuccin-cosmic-setup
+# (so uninstall.sh stays available), installs the ctp-cosmic binary into
+# ~/.local/bin so it can be run again without this script, and runs setup.sh.
 #
-# Safe to run any number of times: each step overwrites only what it
-# installed itself and never duplicates anything.
+#   CATPPUCCIN_SETUP_VERSION=v0.1.0   install a specific release (default: latest)
+#   CATPPUCCIN_SETUP_PACKAGE=file     install from a local package instead
 # =============================================================================
 set -euo pipefail
-cd "$(dirname "$0")/scripts"
 
-# Interactive setup: only with no steps and no options, when there is a
-# terminal to draw on (stdout) and to read keys from (/dev/tty, which also
-# works under `curl ... | bash`).
-interactive() {
-    [ $# -eq 0 ] && [ "${NO_TUI:-0}" != 1 ] && [ -t 1 ] || return 1
-    { : </dev/tty; } 2>/dev/null || return 1
-    local v
-    for v in FLAVOR ACCENT FROSTED FROST_ON ALPHA_OFFSET WALLPAPER_STYLE \
-             WALLPAPER_ROTATE NO_APPLY NO_BACKUP; do
-        [ -z "${!v:-}" ] || return 1
+# Everything is inside main(), called on the last line, so a partially
+# downloaded script never runs.
+main() {
+    local repo=Lucas-BRT/catppuccin-cosmic-setup
+    local version=${CATPPUCCIN_SETUP_VERSION:-latest}
+    local root=${XDG_DATA_HOME:-$HOME/.local/share}/catppuccin-cosmic-setup
+    local arch asset base pkg dir bindir
+    bindir=${CATPPUCCIN_SETUP_BINDIR:-$HOME/.local/bin}
+
+    say() { printf '\033[38;2;203;166;247m==>\033[0m %s\n' "$*"; }
+    die() { printf '\033[38;2;243;139;168merror:\033[0m %s\n' "$*" >&2; exit 1; }
+
+    [ "$(uname -s)" = Linux ] || die "this setup is for Linux (Pop!_OS with COSMIC)"
+    case "$(uname -m)" in
+        x86_64 | amd64) arch=x86_64 ;;
+        aarch64 | arm64) arch=aarch64 ;;
+        *) die "no release package for $(uname -m)" ;;
+    esac
+    for cmd in curl tar sha256sum; do
+        command -v "$cmd" >/dev/null || die "$cmd is required"
     done
+
+    tmp=$(mktemp -d)   # global: the EXIT trap runs after main returns
+    trap 'rm -rf "$tmp"' EXIT
+    asset="catppuccin-cosmic-setup-$arch-linux.tar.gz"
+
+    if [ -n "${CATPPUCCIN_SETUP_PACKAGE:-}" ]; then
+        pkg=$CATPPUCCIN_SETUP_PACKAGE
+        say "Using local package $pkg"
+    else
+        if [ "$version" = latest ]; then
+            base="https://github.com/$repo/releases/latest/download"
+        else
+            base="https://github.com/$repo/releases/download/$version"
+        fi
+        say "Downloading catppuccin-cosmic-setup ($version, $arch)"
+        curl -fsSL --proto '=https' --tlsv1.2 -o "$tmp/$asset" "$base/$asset" ||
+            die "download failed: $base/$asset"
+        curl -fsSL --proto '=https' --tlsv1.2 -o "$tmp/SHA256SUMS" "$base/SHA256SUMS" ||
+            die "download failed: $base/SHA256SUMS"
+        (cd "$tmp" && grep " $asset\$" SHA256SUMS | sha256sum -c --status) ||
+            die "checksum mismatch for $asset"
+        pkg="$tmp/$asset"
+    fi
+
+    # The package holds a single catppuccin-cosmic-setup-<version>/ directory.
+    dir=$(tar -tzf "$pkg" | sed -n 1p)
+    dir=${dir%%/*}
+    case "$dir" in
+        catppuccin-cosmic-setup-*) ;;
+        *) die "unexpected package layout" ;;
+    esac
+    mkdir -p "$root"
+    rm -rf "${root:?}/$dir"
+    tar -xzf "$pkg" -C "$root"
+    ln -sfn "$dir" "$root/current"
+    say "Unpacked to $root/current ($(cat "$root/current/VERSION"))"
+
+    # Copy to a temporary name and rename, so a running ctp-cosmic is not
+    # overwritten in place.
+    mkdir -p "$bindir"
+    install -m 755 "$root/current/bin/ctp-cosmic" "$bindir/.ctp-cosmic.part"
+    mv -f "$bindir/.ctp-cosmic.part" "$bindir/ctp-cosmic"
+    say "Installed $bindir/ctp-cosmic (run it again any time: ctp-cosmic tui)"
+    case ":$PATH:" in
+        *":$bindir:"*) ;;
+        *) say "$bindir is not in your PATH; add it to run ctp-cosmic by name" ;;
+    esac
+
+    "$root/current/setup.sh" "$@" </dev/null
+
+    echo
+    say "To undo: $root/current/uninstall.sh"
 }
-if interactive "$@"; then
-    # shellcheck source=scripts/lib.sh
-    source ./lib.sh   # finds (or builds) ctp-cosmic
-    exec "$CTP_BIN" tui --repo "$REPO_DIR"
-fi
 
-declare -A STEPS=(
-    [cosmic]=10-cosmic-theme.sh
-    [terminal]=20-terminal.sh
-    [bash]=30-bash-prompt.sh
-    [zed]=40-zed.sh
-    [icons]=50-icons.sh
-    [wallpaper]=60-wallpaper.sh
-)
-ORDER=(cosmic terminal bash zed icons wallpaper)
-
-if [ "${1:-}" = --list ]; then
-    for s in "${ORDER[@]}"; do echo "$s  (scripts/${STEPS[$s]})"; done
-    exit 0
-fi
-
-if [ $# -eq 0 ]; then selected=("${ORDER[@]}"); else selected=("$@"); fi
-for s in "${selected[@]}"; do
-    [ -n "${STEPS[$s]:-}" ] || { echo "Unknown step: $s (see --list)" >&2; exit 1; }
-done
-
-[ "${NO_BACKUP:-0}" = 1 ] || ./00-backup.sh
-for s in "${ORDER[@]}"; do
-    [[ " ${selected[*]} " == *" $s "* ]] && "./${STEPS[$s]}"
-done
-
-echo
-echo "Done. If icons or the wallpaper don't change right away, log out and back in."
+main "$@"

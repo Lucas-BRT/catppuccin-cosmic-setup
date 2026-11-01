@@ -2,7 +2,7 @@
 # =============================================================================
 # Undoes the installation.
 #
-#   ./uninstall.sh            # restore the last backup made by install.sh
+#   ./uninstall.sh            # restore the last backup made by setup.sh
 #   ./uninstall.sh <dir>      # restore a specific backup
 #
 # What happens:
@@ -12,7 +12,7 @@
 #   * Papirus, downloaded themes and the wallpapers stay on disk but are no
 #     longer used. Run with PURGE=1 to delete them too (including the
 #     catppuccin-<flavor>-<accent>/ folders made by WALLPAPER_STYLE=all and
-#     the copy of this setup that get.sh unpacked).
+#     the copy of this setup that install.sh unpacked, and ~/.local/bin/ctp-cosmic).
 # =============================================================================
 set -euo pipefail
 # shellcheck source=scripts/lib.sh
@@ -37,7 +37,8 @@ if [ "${PURGE:-0}" = 1 ]; then
            "$HOME/.config/catppuccin" "$CACHE_DIR" \
            "$HOME"/Pictures/Wallpapers/catppuccin-*.png \
            "$HOME"/Pictures/Wallpapers/catppuccin-*/ \
-           "${XDG_DATA_HOME:-$HOME/.local/share}/catppuccin-cosmic-setup"   # get.sh installs
+           "${XDG_DATA_HOME:-$HOME/.local/share}/catppuccin-cosmic-setup" \
+           "$HOME/.local/bin/ctp-cosmic"   # install.sh installs these
     ok "Downloaded files removed"
 fi
 echo "Log out and back in for everything to return to normal."

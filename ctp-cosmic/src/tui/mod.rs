@@ -1,8 +1,8 @@
 //! `ctp-cosmic tui`: interactive setup. Pick flavor, accent, Frosted Glass,
-//! wallpaper and steps with a live preview, then watch install.sh run.
+//! wallpaper and steps with a live preview, then watch setup.sh run.
 //!
-//! install.sh opens this when it runs in a terminal with no options; the
-//! choices are passed back to install.sh as arguments and environment
+//! setup.sh opens this when it runs in a terminal with no options; the
+//! choices are passed back to setup.sh as arguments and environment
 //! variables, so the TUI and scripted installs run exactly the same code.
 
 mod app;
@@ -23,27 +23,29 @@ const USAGE: &str = "\
 ctp-cosmic tui: interactive Catppuccin setup
 
 Usage:
-  ctp-cosmic tui --repo DIR   DIR holds install.sh (the setup to run)
+  ctp-cosmic tui [--repo DIR]   DIR holds setup.sh (the setup to run);
+                                default: the copy install.sh unpacked in
+                                ~/.local/share/catppuccin-cosmic-setup/current
 
-install.sh opens this by itself when run in a terminal without options.
+setup.sh opens this by itself when run in a terminal without options.
 ";
 
-/// One line of install.sh output: (from stderr, text).
+/// One line of setup.sh output: (from stderr, text).
 type Msg = (bool, String);
 
 /// The rendered wallpaper preview and what it shows:
 /// (flavor, accent, style, width, height).
 type PreviewCache = Option<((usize, usize, usize, usize, usize), Vec<u8>)>;
 
-/// Start install.sh with the chosen options, streaming its output.
+/// Start setup.sh with the chosen options, streaming its output.
 fn spawn(repo: &Path, cfg: &Config, tx: mpsc::Sender<Msg>) -> Result<std::process::Child, String> {
-    let mut cmd = Command::new(repo.join("install.sh"));
+    let mut cmd = Command::new(repo.join("setup.sh"));
     cmd.args(cfg.step_args())
         .envs(cfg.env())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = cmd.spawn().map_err(|e| format!("install.sh: {e}"))?;
+    let mut child = cmd.spawn().map_err(|e| format!("setup.sh: {e}"))?;
     for (is_err, pipe) in [
         (
             false,
@@ -96,7 +98,7 @@ fn summary(cfg: &Config, p: &Progress) -> String {
         }
     }
     if let Some(code) = p.exit.filter(|c| *c != 0) {
-        out.push_str(&format!("install.sh failed (exit {code}). Last lines:\n"));
+        out.push_str(&format!("setup.sh failed (exit {code}). Last lines:\n"));
         for (_, l) in p
             .log
             .iter()
@@ -196,8 +198,18 @@ fn run(terminal: &mut DefaultTerminal, repo: &Path) -> Result<Option<(Config, Pr
     }
 }
 
+/// Where install.sh unpacks the setup.
+fn default_repo() -> Result<PathBuf, String> {
+    let data = match std::env::var_os("XDG_DATA_HOME") {
+        Some(d) if !d.is_empty() => PathBuf::from(d),
+        _ => PathBuf::from(std::env::var_os("HOME").ok_or("HOME not set")?).join(".local/share"),
+    };
+    Ok(data.join("catppuccin-cosmic-setup/current"))
+}
+
 pub fn main(args: Vec<String>) -> Result<u8, String> {
     let repo = match args.as_slice() {
+        [] => default_repo()?,
         [flag, dir] if flag == "--repo" => PathBuf::from(dir),
         [h] if h == "-h" || h == "--help" => {
             print!("{USAGE}");
@@ -205,8 +217,8 @@ pub fn main(args: Vec<String>) -> Result<u8, String> {
         }
         _ => return Err(format!("invalid arguments\n\n{USAGE}")),
     };
-    if !repo.join("install.sh").is_file() {
-        return Err(format!("{}: no install.sh here", repo.display()));
+    if !repo.join("setup.sh").is_file() {
+        return Err(format!("{}: no setup.sh here", repo.display()));
     }
     let mut terminal = ratatui::try_init().map_err(|e| format!("cannot open the terminal: {e}"))?;
     let result = run(&mut terminal, &repo);

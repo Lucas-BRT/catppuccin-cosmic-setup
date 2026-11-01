@@ -6,7 +6,8 @@
 
 The [install command](../README.md#install) downloads the latest release
 into `~/.local/share/catppuccin-cosmic-setup/current/` and runs
-`install.sh` from there.
+`setup.sh` from there. It also installs `ctp-cosmic` into `~/.local/bin`, so
+you can reopen the interactive setup later with just `ctp-cosmic tui`.
 
 In a terminal, with no options, it opens an interactive setup: pick the
 flavor, accent, Frosted Glass, wallpaper and steps with a live preview,
@@ -18,14 +19,14 @@ also what happens without a terminal (`NO_TUI=1` forces it). Options are
 environment variables, and steps can be run on their own:
 
 ```bash
-curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/get.sh | bash -s -- icons wallpaper
+curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | bash -s -- bash wallpaper
 
 cd ~/.local/share/catppuccin-cosmic-setup/current
-./install.sh --list              # list the steps
-FLAVOR=frappe ./install.sh bash  # rerun one step with another flavor
+./setup.sh --list              # list the steps
+FLAVOR=frappe ./setup.sh bash  # rerun one step with another flavor
 ```
 
-From a git clone, `./install.sh` works the same; `ctp-cosmic` (the Rust tool
+From a git clone, `./setup.sh` works the same; `ctp-cosmic` (the Rust tool
 that generates themes and wallpapers) is then downloaded from the pinned
 release, or built with `cargo`.
 
@@ -46,8 +47,8 @@ release, or built with `cargo`.
 | `NO_TUI` | `0` | `1` never opens the interactive setup |
 
 Invalid values stop the installer before anything is changed. Latte is the
-only light flavor: it switches COSMIC to light mode and uses the light
-Papirus icons.
+only light flavor: it switches COSMIC to light mode (and, with the optional
+icons step, uses the light Papirus icons).
 
 ## Steps
 
@@ -57,8 +58,8 @@ Papirus icons.
 | `cosmic` | generates the desktop theme and applies it with `cosmic-settings appearance import`, keeping your interface density |
 | `terminal` | downloads the COSMIC Terminal scheme (import it by hand, see below) |
 | `bash` | installs the prompt and adds one marked block to `~/.bashrc` |
-| `zed` | only checks your Zed setup and tells you what is missing |
-| `icons` | Papirus in `~/.local/share/icons` with `cat-<flavor>-<accent>` folders, no `sudo`; window buttons stay COSMIC's own |
+| `zed` | applies Catppuccin theme and icons to Zed (`~/.config/zed/settings.json`) |
+| `icons` | **optional**, see [Icons](#icons-optional) |
 | `wallpaper` | renders a wallpaper and sets it as the background |
 
 ### Terminal
@@ -69,17 +70,27 @@ manual: **View → Color schemes… → Import**, then pick
 The scheme has no background of its own, so the terminal follows the
 desktop theme (and Frosted Glass).
 
-### Zed
+### Icons (optional)
 
-Install the `catppuccin` and `catppuccin-icons` extensions from Zed
-(`Ctrl+Shift+X`), then in `~/.config/zed/settings.json`:
+COSMIC's own icons are left alone unless you ask for this step. It installs
+Papirus (no `sudo`) with folders in the chosen accent from
+[catppuccin/papirus-folders](https://github.com/catppuccin/papirus-folders),
+keeps COSMIC's window buttons, and falls back to COSMIC's icons for anything
+Papirus lacks. Name the step to run it:
 
-```jsonc
-"icon_theme": "Catppuccin Mocha",
-"theme": { "mode": "system", "light": "One Light", "dark": "Catppuccin Mocha" }
+```bash
+./setup.sh icons
+curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | bash -s -- icons
 ```
 
-Use `"light"` for Latte, and note the accent in `"Catppuccin Frappé"`.
+In the interactive setup it starts unchecked. Uninstalling restores your
+previous icon theme.
+
+### Zed
+
+The installer configures `~/.config/zed/settings.json` automatically, setting `theme` and `icon_theme` for your chosen flavor while preserving comments and existing preferences.
+
+Make sure the `catppuccin` and `catppuccin-icons` extensions are installed in Zed (`Ctrl+Shift+X`).
 
 ### Desktop theme by hand
 
@@ -116,13 +127,13 @@ Rows in the [preview](previews.png) follow this order:
 | `mountains` | mountain ridges under a moon |
 
 ```bash
-WALLPAPER_STYLE=sunset ./install.sh wallpaper
+WALLPAPER_STYLE=sunset ./setup.sh wallpaper
 ```
 
 ### All styles in COSMIC's wallpaper picker
 
 ```bash
-WALLPAPER_STYLE=all ./install.sh wallpaper
+WALLPAPER_STYLE=all ./setup.sh wallpaper
 ```
 
 Renders every style into `~/Pictures/Wallpapers/catppuccin-<flavor>-<accent>/`

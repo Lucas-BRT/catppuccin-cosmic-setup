@@ -18,10 +18,11 @@ fetch_pinned "$CTP_COSMIC_REPO" "$CTP_COSMIC_REV" "$CACHE_DIR/cosmic-desktop"
 mkdir -p "$DATA_DIR/themes"
 cp -r "$CACHE_DIR/cosmic-desktop/themes/cosmic-term" "$DATA_DIR/themes/"
 scheme="$DATA_DIR/themes/cosmic-term/catppuccin-$FLAVOR.ron"
+[ -f "$scheme" ] && ok "Scheme file created: $scheme"
 
 if grep -rqs "Catppuccin" "$COSMIC_DIR/com.system76.CosmicTerm/v1/"; then
     ok "Catppuccin scheme already imported in the terminal"
 else
     todo "In COSMIC Terminal: View → Color schemes… → Import and pick:"
-    todo "  $scheme"
+    todo "  $scheme (press Ctrl+H to view hidden folders)"
 fi

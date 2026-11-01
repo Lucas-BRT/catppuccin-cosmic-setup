@@ -184,7 +184,7 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
             .fg(t.c("subtext1"))
             .add_modifier(Modifier::BOLD),
     ));
-    for (i, (_, label)) in STEPS.iter().enumerate() {
+    for (i, step) in STEPS.iter().enumerate() {
         let on = focused == Field::Step(i);
         let check = if c.steps[i] { "◉" } else { "○" };
         let mut line = Line::from(vec![
@@ -197,7 +197,7 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
                     t.c("overlay0")
                 }),
             ),
-            Span::styled(label.to_string(), Style::new().fg(t.c("text"))),
+            Span::styled(step.label.to_string(), Style::new().fg(t.c("text"))),
         ]);
         if on {
             line = line.style(Style::new().bg(t.c("surface0")));
@@ -309,25 +309,29 @@ fn capitalize(s: &str) -> String {
 
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
-/// The progress screen while (and after) install.sh runs.
+/// The progress screen while (and after) setup.sh runs.
 pub fn draw_progress(f: &mut Frame, cfg: &Config, p: &Progress, tick: usize) {
     let t = Theme::of(cfg);
     f.render_widget(Block::new().style(t.base()), f.area());
-    let [main, foot] =
-        Layout::vertical([Constraint::Min(10), Constraint::Length(1)]).areas(f.area());
-    let [left, right] =
-        Layout::horizontal([Constraint::Length(36), Constraint::Min(20)]).areas(main);
     let todo_height = if p.todos.is_empty() || p.running() {
         0
     } else {
-        p.todos.len() as u16 + 2
+        (p.todos.len() as u16 + 3).min(8)
     };
-    let [steps_area, todo_area] =
-        Layout::vertical([Constraint::Min(4), Constraint::Length(todo_height)]).areas(left);
+
+    let [main, todo_area, foot] = Layout::vertical([
+        Constraint::Min(8),
+        Constraint::Length(todo_height),
+        Constraint::Length(1),
+    ])
+    .areas(f.area());
+
+    let [left, right] =
+        Layout::horizontal([Constraint::Length(36), Constraint::Min(20)]).areas(main);
 
     let block = t.block("Installing");
-    let inner = block.inner(steps_area);
-    f.render_widget(block, steps_area);
+    let inner = block.inner(left);
+    f.render_widget(block, left);
     let mut lines = vec![Line::raw("")];
     for s in &p.steps {
         let (glyph, color) = match s.status {
@@ -358,18 +362,6 @@ pub fn draw_progress(f: &mut Frame, cfg: &Config, p: &Progress, tick: usize) {
     }
     f.render_widget(Paragraph::new(lines), inner);
 
-    if todo_height > 0 {
-        let block = t.block("Left for you");
-        let inner = block.inner(todo_area);
-        f.render_widget(block, todo_area);
-        let lines: Vec<Line> = p
-            .todos
-            .iter()
-            .map(|l| Line::styled(format!(" {l}"), Style::new().fg(t.c("text"))))
-            .collect();
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
-    }
-
     let block = t.block("Log");
     let inner = block.inner(right);
     f.render_widget(block, right);
@@ -389,6 +381,18 @@ pub fn draw_progress(f: &mut Frame, cfg: &Config, p: &Progress, tick: usize) {
         .collect();
     f.render_widget(Paragraph::new(lines), inner);
 
+    if todo_height > 0 {
+        let block = t.block("Left for you");
+        let inner = block.inner(todo_area);
+        f.render_widget(block, todo_area);
+        let lines: Vec<Line> = p
+            .todos
+            .iter()
+            .map(|l| Line::styled(format!(" {l}"), Style::new().fg(t.c("text"))))
+            .collect();
+        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+    }
+
     let (keys, msg): (&[(&str, &str)], Option<String>) = match p.exit {
         None => (
             &[("ctrl-c", "stop")],
@@ -397,7 +401,7 @@ pub fn draw_progress(f: &mut Frame, cfg: &Config, p: &Progress, tick: usize) {
         Some(0) => (&[("q", "quit")], Some("Done.".into())),
         Some(code) => (
             &[("q", "quit")],
-            Some(format!("install.sh failed (exit {code}); see the log")),
+            Some(format!("setup.sh failed (exit {code}); see the log")),
         ),
     };
     footer(f, foot, t, keys, msg.as_deref());

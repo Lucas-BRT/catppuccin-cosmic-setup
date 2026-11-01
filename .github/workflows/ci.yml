@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: ShellCheck
-        run: shellcheck -x get.sh install.sh uninstall.sh scripts/*.sh scripts/dev/*.sh
+        run: shellcheck -x install.sh setup.sh uninstall.sh scripts/*.sh scripts/dev/*.sh
       - name: Pinned release is complete
         run: |
           if [ -f ctp-cosmic/RELEASE ]; then

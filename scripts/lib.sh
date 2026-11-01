@@ -34,7 +34,7 @@ todo() { printf '\e[38;2;203;166;247m ➜\e[0m %s\n' "$*"; }    # mauve
 # --- ctp-cosmic -----------------------------------------------------------
 # ctp-cosmic (ctp-cosmic/, Rust) does everything the scripts compute: palette
 # lookups, desktop themes and wallpapers. Release packages installed with
-# get.sh include it in bin/. In a git clone, the prebuilt binary is
+# install.sh include it in bin/. In a git clone, the prebuilt binary is
 # downloaded from the release named in ctp-cosmic/RELEASE and only run if it
 # matches the hash pinned in ctp-cosmic/SHA256SUMS; without a pinned binary
 # for this machine, or with BUILD_FROM_SOURCE=1, it is built with cargo.
@@ -42,6 +42,13 @@ find_ctp() {
     local tag arch asset expected bin
     if [ -x "$REPO_DIR/bin/ctp-cosmic" ] && [ "${BUILD_FROM_SOURCE:-0}" != 1 ]; then
         CTP_BIN="$REPO_DIR/bin/ctp-cosmic"
+        return 0
+    fi
+    if [ -d "$REPO_DIR/.git" ] && command -v cargo >/dev/null; then
+        CTP_BIN="$CACHE_DIR/target/release/ctp-cosmic"
+        [ -x "$CTP_BIN" ] || info "Building ctp-cosmic with cargo (first time takes a minute)"
+        cargo build --release --locked --quiet \
+            --manifest-path "$REPO_DIR/ctp-cosmic/Cargo.toml" --target-dir "$CACHE_DIR/target"
         return 0
     fi
     tag=$(cat "$REPO_DIR/ctp-cosmic/RELEASE" 2>/dev/null || true)
@@ -92,7 +99,7 @@ find_ctp
 ctp() { "$CTP_BIN" "$@"; }
 
 # Catppuccin flavor and accent. Override with environment variables:
-#   FLAVOR=latte ACCENT=lavender ./install.sh
+#   FLAVOR=latte ACCENT=lavender ./setup.sh
 FLAVOR="${FLAVOR:-mocha}"
 ACCENT="${ACCENT:-mauve}"
 ctp palette check "$FLAVOR" "$ACCENT"
@@ -119,12 +126,7 @@ unset suffix
 WALLPAPER_ROTATE="${WALLPAPER_ROTATE:-}"
 ROTATE_SECONDS=""
 if [ -n "$WALLPAPER_ROTATE" ]; then
-    case "$WALLPAPER_ROTATE" in
-        5m|300) ROTATE_SECONDS=300 ;;     10m|600) ROTATE_SECONDS=600 ;;
-        15m|900) ROTATE_SECONDS=900 ;;    30m|1800) ROTATE_SECONDS=1800 ;;
-        1h|3600) ROTATE_SECONDS=3600 ;;   2h|7200) ROTATE_SECONDS=7200 ;;
-        *) echo "invalid WALLPAPER_ROTATE '$WALLPAPER_ROTATE' (choose: 5m, 10m, 15m, 30m, 1h, 2h)" >&2; exit 1 ;;
-    esac
+    ROTATE_SECONDS=$(ctp steps rotate "$WALLPAPER_ROTATE") || exit 1
     if [ "$WALLPAPER_STYLE" != all ]; then
         echo "WALLPAPER_ROTATE needs WALLPAPER_STYLE=all (a slideshow needs several images)" >&2
         exit 1

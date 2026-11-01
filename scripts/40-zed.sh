@@ -3,9 +3,9 @@
 # 40 · Zed
 # Zed uses the official "Catppuccin" (colors) and "Catppuccin Icons" (icons)
 # extensions. Extensions can only be installed from Zed itself
-# (Ctrl+Shift+X). This step checks settings.json and reports what is
-# missing, without rewriting the file: it holds comments and other
-# preferences of yours.
+# (Ctrl+Shift+X). This step applies the theme and icon theme to
+# ~/.config/zed/settings.json using ctp-cosmic zed, preserving existing comments
+# and preferences.
 #
 # Expected snippet in ~/.config/zed/settings.json (Mocha shown; Latte goes
 # under "light" instead of "dark"):
@@ -18,8 +18,8 @@ source "$(dirname "$0")/lib.sh"
 info "Zed"
 settings="$HOME/.config/zed/settings.json"
 name="Catppuccin $(ctp palette name "$FLAVOR")"   # e.g. "Catppuccin Frappé"
-if ctp palette is-dark "$FLAVOR"; then mode=dark; else mode=light; fi
-if ! command -v zed >/dev/null && ! command -v zeditor >/dev/null; then
+export PATH="$HOME/.local/bin:$PATH"
+if ! command -v zed >/dev/null && ! command -v zeditor >/dev/null && [ ! -x "$HOME/.local/bin/zed" ]; then
     warn "Zed not found, skipping"; exit 0
 fi
 ext="$HOME/.local/share/zed/extensions/installed"
@@ -30,13 +30,7 @@ for e in catppuccin catppuccin-icons; do
         todo "Install the \"$e\" extension in Zed (Ctrl+Shift+X)"
     fi
 done
-if grep -q "\"$mode\": *\"$name\"" "$settings" 2>/dev/null; then
-    ok "Editor theme: $name"
-else
-    todo "In $settings, set \"theme\": { \"$mode\": \"$name\" }"
-fi
-if grep -q "\"icon_theme\": *\"$name\"" "$settings" 2>/dev/null; then
-    ok "Editor icons: $name"
-else
-    todo "In $settings, set \"icon_theme\": \"$name\""
-fi
+
+ctp zed apply "$FLAVOR" --settings "$settings" >/dev/null
+ok "Editor theme: $name"
+ok "Editor icons: $name"

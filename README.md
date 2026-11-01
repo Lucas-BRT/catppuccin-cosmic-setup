@@ -15,15 +15,18 @@ One-command [Catppuccin](https://catppuccin.com) setup for Pop!_OS 24.04
 ## Install
 
 ```bash
-curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/get.sh | bash
+curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | bash
 ```
 
 In a terminal this opens an interactive setup with a live preview. To
 install directly instead, pass the options:
 
 ```bash
-curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/get.sh | FLAVOR=latte ACCENT=blue bash
+curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | FLAVOR=latte ACCENT=blue bash
 ```
+
+The `ctp-cosmic` binary is installed in `~/.local/bin`: run
+`ctp-cosmic tui` later to change flavor, accent or steps without the script.
 
 Your settings are backed up first, and
 `~/.local/share/catppuccin-cosmic-setup/current/uninstall.sh` restores them.
@@ -35,9 +38,10 @@ Options, the one manual step (terminal colors) and wallpaper styles are in
 - **Desktop theme** with Frosted Glass support
 - **COSMIC Terminal** color scheme
 - **Bash prompt** with git branch, in the flavor's colors
-- **Papirus icons** with Catppuccin folders
+- **Papirus icons** with Catppuccin folders, only if you ask for them
+  (COSMIC's own icons stay by default; see [docs/USAGE.md](docs/USAGE.md#icons-optional))
 - **Wallpapers** in 10 styles, also available in COSMIC's wallpaper picker
-- **Zed** check, telling you what to set
+- **Zed** theme and icon configuration (preserves your settings.json comments)
 
 ## Credits
 

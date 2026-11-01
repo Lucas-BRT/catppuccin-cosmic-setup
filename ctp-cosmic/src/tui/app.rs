@@ -3,17 +3,8 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::palette;
+pub use crate::steps::STEPS;
 use crate::styles;
-
-/// Installer steps the user can pick, as (install.sh name, label).
-pub const STEPS: [(&str, &str); 6] = [
-    ("cosmic", "Desktop theme"),
-    ("terminal", "Terminal colors"),
-    ("bash", "Bash prompt"),
-    ("zed", "Zed check"),
-    ("icons", "Papirus icons"),
-    ("wallpaper", "Wallpaper"),
-];
 
 /// FROSTED values: keep the current setting, off, or a blur strength.
 pub const FROSTED: [&str; 16] = [
@@ -63,7 +54,7 @@ pub fn fields() -> Vec<Field> {
     f
 }
 
-/// What the user chose, turned into install.sh arguments and environment.
+/// What the user chose, turned into setup.sh arguments and environment.
 #[derive(Clone, Debug)]
 pub struct Config {
     pub flavor: usize,
@@ -85,7 +76,8 @@ impl Default for Config {
             frosted: 0,
             style: 0,
             rotate: 0,
-            steps: [true; STEPS.len()],
+            // Optional steps (icons) stay off unless asked for.
+            steps: STEPS.each_ref().map(|s| !s.optional),
         }
     }
 }
@@ -110,17 +102,17 @@ impl Config {
         self.style_id() == "all"
     }
 
-    /// Step names to pass to install.sh, in installer order.
+    /// Step names to pass to setup.sh, in installer order.
     pub fn step_args(&self) -> Vec<String> {
         STEPS
             .iter()
             .zip(self.steps)
             .filter(|(_, on)| *on)
-            .map(|((name, _), _)| name.to_string())
+            .map(|(s, _)| s.name.to_string())
             .collect()
     }
 
-    /// Environment for install.sh.
+    /// Environment for setup.sh.
     pub fn env(&self) -> Vec<(&'static str, String)> {
         let mut env = vec![
             ("FLAVOR", self.flavor_id().to_string()),
@@ -219,7 +211,7 @@ impl Setup {
     }
 }
 
-/// Progress of one step while install.sh runs.
+/// Progress of one step while setup.sh runs.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Status {
     Pending,
@@ -235,7 +227,7 @@ pub struct StepProgress {
     pub status: Status,
 }
 
-/// The progress screen: fed install.sh's output line by line.
+/// The progress screen: fed setup.sh's output line by line.
 pub struct Progress {
     pub steps: Vec<StepProgress>,
     pub log: Vec<(bool, String)>, // (from stderr, text)
@@ -245,7 +237,7 @@ pub struct Progress {
     warned: bool,
 }
 
-/// Remove ANSI escape sequences (install.sh colors its messages).
+/// Remove ANSI escape sequences (setup.sh colors its messages).
 pub fn strip_ansi(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut chars = s.chars().peekable();
@@ -276,11 +268,11 @@ impl Progress {
                 status: Status::Pending,
             });
         }
-        for ((key, label), on) in STEPS.iter().zip(cfg.steps) {
+        for (step, on) in STEPS.iter().zip(cfg.steps) {
             if on {
                 steps.push(StepProgress {
-                    key,
-                    label,
+                    key: step.name,
+                    label: step.label,
                     status: Status::Pending,
                 });
             }
@@ -295,7 +287,7 @@ impl Progress {
         }
     }
 
-    /// Which step an install.sh "==> ..." header starts.
+    /// Which step an setup.sh "==> ..." header starts.
     fn step_for_header(header: &str) -> Option<&'static str> {
         let rules: [(&str, &str); 7] = [
             ("Backing up", "backup"),
@@ -390,10 +382,21 @@ mod tests {
     }
 
     #[test]
+    fn slideshow_intervals_are_valid() {
+        for label in &ROTATE[1..] {
+            assert!(crate::steps::rotate_seconds(label).is_ok(), "{label}");
+        }
+    }
+
+    #[test]
     fn steps_toggle_and_need_one() {
         let mut s = Setup::default();
-        assert_eq!(s.cfg.step_args().len(), STEPS.len());
-        for i in 0..STEPS.len() {
+        // Everything but the optional icons step starts selected.
+        assert_eq!(
+            s.cfg.step_args(),
+            ["cosmic", "terminal", "bash", "zed", "wallpaper"]
+        );
+        for i in (0..STEPS.len()).filter(|i| !STEPS[*i].optional) {
             s.field = 5 + i;
             press(&mut s, KeyCode::Char(' '));
         }

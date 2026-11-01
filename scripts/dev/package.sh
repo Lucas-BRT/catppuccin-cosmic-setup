@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Build the release package that get.sh downloads.
+# Build the release package that install.sh downloads.
 #
 #   scripts/dev/package.sh v0.2.0 x86_64 path/to/ctp-cosmic out-dir/
 #
@@ -21,7 +21,7 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 mkdir -p "$work/$name/bin" "$work/$name/scripts" "$work/$name/docs"
-cp -r install.sh uninstall.sh LICENSE README.md themes config "$work/$name/"
+cp -r setup.sh uninstall.sh LICENSE README.md themes config "$work/$name/"
 cp docs/*.md "$work/$name/docs/"
 cp scripts/*.sh "$work/$name/scripts/"
 install -m 755 "$binary" "$work/$name/bin/ctp-cosmic"

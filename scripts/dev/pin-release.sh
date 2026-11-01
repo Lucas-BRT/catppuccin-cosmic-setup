@@ -6,7 +6,7 @@
 #
 # Downloads the release's SHA256SUMS and writes ctp-cosmic/RELEASE and
 # ctp-cosmic/SHA256SUMS. Review the diff and commit it: from then on a clone
-# only runs binaries matching these hashes. (Installs through get.sh use the
+# only runs binaries matching these hashes. (Installs through install.sh use the
 # binary bundled in the release package instead.)
 # =============================================================================
 set -euo pipefail
