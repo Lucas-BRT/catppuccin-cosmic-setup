@@ -23,6 +23,8 @@
 #                                # mesh, aurora, sunset, topography, mountains,
 #                                # or all: every style in a folder for the COSMIC picker
 #   WALLPAPER_ROTATE=30m         # with all: slideshow of that folder (5m ... 2h)
+#   TERMINAL_FONT="JetBrainsMono Nerd Font"  # COSMIC Terminal font; list yours with
+#                                # ctp-cosmic terminal font list. TERMINAL_FONT_SIZE=13
 #   NO_APPLY=1                   # only generate the theme, don't apply it
 #   NO_BACKUP=1                  # skip the backup
 #   BUILD_FROM_SOURCE=1          # build ctp-cosmic with cargo instead of
@@ -43,7 +45,7 @@ interactive() {
     { : </dev/tty; } 2>/dev/null || return 1
     local v
     for v in FLAVOR ACCENT FROSTED FROST_ON ALPHA_OFFSET WALLPAPER_STYLE \
-             WALLPAPER_ROTATE NO_APPLY NO_BACKUP; do
+             WALLPAPER_ROTATE TERMINAL_FONT NO_APPLY NO_BACKUP; do
         [ -z "${!v:-}" ] || return 1
     done
 }

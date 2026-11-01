@@ -61,6 +61,8 @@ copy: `ctp-cosmic tui` without `--repo` runs the setup unpacked in
 | `WALLPAPER_STYLE` | `glow` | a wallpaper style, or `all` (see [Wallpapers](#wallpapers)) |
 | `WALLPAPER_ROTATE` | | slideshow interval for `WALLPAPER_STYLE=all`: `5m` `10m` `15m` `30m` `1h` `2h` |
 | `NO_APPLY` | `0` | `1` generates the desktop theme without applying it |
+| `TERMINAL_FONT` | | COSMIC Terminal font family, e.g. `JetBrainsMono Nerd Font`; list yours with `ctp-cosmic terminal font list`. The default font lacks many icons, so a [Nerd Font](https://www.nerdfonts.com) fits well (install it first). Also a row in the interactive setup |
+| `TERMINAL_FONT_SIZE` | | size for `TERMINAL_FONT` (4 to 96) |
 | `NO_BACKUP` | `0` | `1` skips the backup |
 | `BUILD_FROM_SOURCE` | `0` | `1` builds `ctp-cosmic` with `cargo` instead of downloading it |
 | `NO_TUI` | `0` | `1` never opens the interactive setup |

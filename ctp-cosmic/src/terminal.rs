@@ -10,6 +10,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
@@ -140,18 +141,80 @@ pub fn check(flavor: &str, dir: &Path) -> Result<bool, String> {
     Ok(installed && selected)
 }
 
+/// Monospace families installed on this machine, from fontconfig: the
+/// fixed-width ones, plus Nerd Fonts (their icons are wider than a cell in
+/// the non-"Mono" variants, but they are what the TUI's glyphs need).
+pub fn installed_fonts() -> Vec<String> {
+    let out = Command::new("fc-list")
+        .args([":", "family", "spacing"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+        .unwrap_or_default();
+    parse_fonts(&out)
+}
+
+/// `fc-list : family spacing` lines look like `Fira Mono,Fira Mono Medium:spacing=100`.
+fn parse_fonts(fc_list: &str) -> Vec<String> {
+    let mut fonts: Vec<String> = fc_list
+        .lines()
+        .filter_map(|line| {
+            let (families, rest) = line.split_once(':').unwrap_or((line, ""));
+            let family = families.split(',').next()?.trim();
+            let mono = rest.contains("spacing=100") || family.contains("Nerd Font");
+            let junk = family.contains("Emoji") || family.contains("SignWriting");
+            (mono && !junk && !family.is_empty()).then(|| family.to_string())
+        })
+        .collect();
+    fonts.sort();
+    fonts.dedup();
+    fonts
+}
+
+/// Sets COSMIC Terminal's font (`font_name`, and `font_size` when given).
+pub fn set_font(dir: &Path, name: &str, size: Option<u16>) -> Result<(), String> {
+    if name.is_empty() || name.chars().any(char::is_control) {
+        return Err("font name is empty or has control characters".into());
+    }
+    // Skipped when fontconfig is missing: then nothing can be checked.
+    let installed = installed_fonts();
+    if !installed.is_empty() && !installed.iter().any(|f| f == name) {
+        return Err(format!(
+            "font '{name}' is not installed (see: ctp-cosmic terminal font list)"
+        ));
+    }
+    if size.is_some_and(|s| !(4..=96).contains(&s)) {
+        return Err("font size must be between 4 and 96".into());
+    }
+    fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    write(&dir.join("font_name"), &crate::folders::quote(name))?;
+    match size {
+        Some(s) => write(&dir.join("font_size"), &s.to_string()),
+        None => Ok(()),
+    }
+}
+
 const USAGE: &str = "\
-ctp-cosmic terminal: Catppuccin colors for COSMIC Terminal
+ctp-cosmic terminal: Catppuccin colors and font for COSMIC Terminal
 
 Usage:
   ctp-cosmic terminal apply FLAVOR [--config DIR]
   ctp-cosmic terminal check FLAVOR [--config DIR]
+  ctp-cosmic terminal font list                      installed monospace and Nerd Fonts
+  ctp-cosmic terminal font set NAME [--size N] [--config DIR]
 
 --config DIR   cosmic-config folder (default: ~/.config/cosmic/com.system76.CosmicTerm/v1)
 ";
 
 pub fn main(args: Vec<String>) -> Result<u8, String> {
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    match args[..] {
+        ["font", "list"] => {
+            installed_fonts().iter().for_each(|f| println!("{f}"));
+            return Ok(0);
+        }
+        ["font", "set", name, ref rest @ ..] => return font_set(name, rest),
+        _ => {}
+    }
     let (cmd, flavor, dir) = match args[..] {
         [cmd @ ("apply" | "check"), flavor] => (cmd, flavor, default_config_dir()?),
         [cmd @ ("apply" | "check"), flavor, "--config", dir] => (cmd, flavor, PathBuf::from(dir)),
@@ -167,6 +230,25 @@ pub fn main(args: Vec<String>) -> Result<u8, String> {
     } else {
         Ok(if check(flavor, &dir)? { 0 } else { 1 })
     }
+}
+
+fn font_set(name: &str, rest: &[&str]) -> Result<u8, String> {
+    let (mut size, mut dir) = (None, None);
+    let mut it = rest.iter();
+    while let Some(&flag) = it.next() {
+        match (flag, it.next()) {
+            ("--size", Some(v)) => {
+                size = Some(v.parse::<u16>().map_err(|_| format!("bad --size '{v}'"))?)
+            }
+            ("--config", Some(d)) => dir = Some(PathBuf::from(d)),
+            _ => return Err(format!("bad arguments\n\n{USAGE}")),
+        }
+    }
+    let dir = match dir {
+        Some(d) => d,
+        None => default_config_dir()?,
+    };
+    set_font(&dir, name, size).map(|()| 0)
 }
 
 #[cfg(test)]
@@ -215,6 +297,38 @@ mod tests {
         write(&dir.join("syntax_theme_dark"), "\"Catppuccin Mocha\"").unwrap();
         assert!(check("mocha", &dir).unwrap());
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn fonts_are_parsed_from_fc_list() {
+        let out = "Fira Mono,Fira Mono Medium:spacing=100\n\
+                   DejaVu Sans:spacing=0\n\
+                   Noto Color Emoji:spacing=100\n\
+                   JetBrainsMono Nerd Font:spacing=90\n\
+                   Fira Mono:spacing=100\n";
+        assert_eq!(parse_fonts(out), ["Fira Mono", "JetBrainsMono Nerd Font"]);
+    }
+
+    #[test]
+    fn font_is_written_as_cosmic_reads_it() {
+        let dir = tmp("font");
+        // An unknown font is refused whenever fontconfig can list fonts.
+        if installed_fonts().is_empty() {
+            set_font(&dir, "Anything", Some(13)).unwrap();
+            assert_eq!(
+                fs::read_to_string(dir.join("font_name")).unwrap(),
+                "\"Anything\""
+            );
+            assert_eq!(fs::read_to_string(dir.join("font_size")).unwrap(), "13");
+        } else {
+            assert!(set_font(&dir, "No Such Font 123", None).is_err());
+            let first = installed_fonts().remove(0);
+            set_font(&dir, &first, None).unwrap();
+            assert!(!dir.join("font_size").exists());
+        }
+        assert!(set_font(&dir, "bad\nname", None).is_err());
+        assert!(set_font(&dir, "x", Some(2)).is_err());
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

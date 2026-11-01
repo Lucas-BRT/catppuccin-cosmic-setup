@@ -29,6 +29,9 @@ pub const FROSTED: [&str; 16] = [
 /// Slideshow intervals COSMIC Settings offers (only with every style).
 pub const ROTATE: [&str; 7] = ["off", "5m", "10m", "15m", "30m", "1h", "2h"];
 
+/// First entry of `Config::fonts`.
+pub const KEEP_FONT: &str = "keep current";
+
 /// The rows of the configuration screen, top to bottom.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Field {
@@ -37,6 +40,7 @@ pub enum Field {
     Frosted,
     Wallpaper,
     Slideshow,
+    Font,
     Step(usize),
     Install,
 }
@@ -48,6 +52,7 @@ pub fn fields() -> Vec<Field> {
         Field::Frosted,
         Field::Wallpaper,
         Field::Slideshow,
+        Field::Font,
     ];
     f.extend((0..STEPS.len()).map(Field::Step));
     f.push(Field::Install);
@@ -63,6 +68,9 @@ pub struct Config {
     /// Index into `wallpaper_choices()` (the styles, then "all").
     pub style: usize,
     pub rotate: usize,
+    /// Index into `fonts`; 0 keeps the terminal's current font.
+    pub font: usize,
+    pub fonts: Vec<String>,
     pub steps: [bool; STEPS.len()],
 }
 
@@ -76,6 +84,8 @@ impl Default for Config {
             frosted: 0,
             style: 0,
             rotate: 0,
+            font: 0,
+            fonts: vec![KEEP_FONT.to_string()],
             // Optional steps (icons) stay off unless asked for.
             steps: STEPS.each_ref().map(|s| !s.optional),
         }
@@ -124,6 +134,9 @@ impl Config {
         if self.slideshow_available() && self.rotate > 0 {
             env.push(("WALLPAPER_ROTATE", ROTATE[self.rotate].to_string()));
         }
+        if self.font > 0 {
+            env.push(("TERMINAL_FONT", self.fonts[self.font].clone()));
+        }
         env
     }
 }
@@ -171,6 +184,7 @@ impl Setup {
             Field::Slideshow => {
                 self.message = Some("The slideshow needs Wallpaper set to \"all\"".into())
             }
+            Field::Font => cycle(&mut c.font, c.fonts.len(), forward),
             Field::Step(i) => c.steps[i] = !c.steps[i],
             Field::Install => {}
         }
@@ -389,6 +403,23 @@ mod tests {
     }
 
     #[test]
+    fn font_row_cycles_and_reaches_the_environment() {
+        let mut s = Setup::default();
+        s.cfg.fonts.push("Fira Mono".into());
+        assert!(!s.cfg.env().iter().any(|(k, _)| *k == "TERMINAL_FONT"));
+        s.field = 5;
+        assert_eq!(s.current(), Field::Font);
+        press(&mut s, KeyCode::Right);
+        assert!(
+            s.cfg
+                .env()
+                .contains(&("TERMINAL_FONT", "Fira Mono".to_string()))
+        );
+        press(&mut s, KeyCode::Right);
+        assert_eq!(s.cfg.font, 0);
+    }
+
+    #[test]
     fn steps_toggle_and_need_one() {
         let mut s = Setup::default();
         // Everything but the optional icons step starts selected.
@@ -397,12 +428,12 @@ mod tests {
             ["cosmic", "terminal", "bash", "zed", "wallpaper"]
         );
         for i in (0..STEPS.len()).filter(|i| !STEPS[*i].optional) {
-            s.field = 5 + i;
+            s.field = 6 + i;
             press(&mut s, KeyCode::Char(' '));
         }
         assert!(s.cfg.step_args().is_empty());
         assert_eq!(press(&mut s, KeyCode::Enter), Action::None);
-        s.field = 5 + 2;
+        s.field = 6 + 2;
         press(&mut s, KeyCode::Char(' '));
         assert_eq!(s.cfg.step_args(), ["bash"]);
         assert_eq!(press(&mut s, KeyCode::Enter), Action::Install);

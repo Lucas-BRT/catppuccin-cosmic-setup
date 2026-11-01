@@ -17,3 +17,12 @@ source "$(dirname "$0")/lib.sh"
 info "COSMIC Terminal"
 ctp terminal apply "$FLAVOR"
 ok "Terminal colors: Catppuccin $(ctp palette name "$FLAVOR")"
+
+# Optional font (the default one lacks many of the icons the TUI and Nerd Font
+# prompts use): TERMINAL_FONT="JetBrainsMono Nerd Font" TERMINAL_FONT_SIZE=13
+if [ -n "${TERMINAL_FONT:-}" ]; then
+    font_args=("$TERMINAL_FONT")
+    [ -z "${TERMINAL_FONT_SIZE:-}" ] || font_args+=(--size "$TERMINAL_FONT_SIZE")
+    ctp terminal font set "${font_args[@]}"
+    ok "Terminal font: $TERMINAL_FONT${TERMINAL_FONT_SIZE:+ ($TERMINAL_FONT_SIZE)}"
+fi

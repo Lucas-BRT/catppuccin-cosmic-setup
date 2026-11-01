@@ -177,6 +177,12 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
         rotate.into(),
         wall_on && c.slideshow_available(),
     ));
+    lines.push(row(
+        Field::Font,
+        "Term font",
+        c.fonts[c.font].clone(),
+        c.steps[1],
+    ));
     lines.push(Line::raw(""));
     lines.push(Line::styled(
         "  Steps",
@@ -220,7 +226,7 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
             },
         ),
     ]));
-    debug_assert_eq!(fields().len(), 6 + STEPS.len());
+    debug_assert_eq!(fields().len(), 7 + STEPS.len());
     f.render_widget(Paragraph::new(lines), inner);
 
     // Right: live preview.

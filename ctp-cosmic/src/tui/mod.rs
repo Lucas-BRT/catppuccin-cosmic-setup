@@ -117,6 +117,7 @@ fn summary(cfg: &Config, p: &Progress) -> String {
 fn run(terminal: &mut DefaultTerminal, repo: &Path) -> Result<Option<(Config, Progress)>, String> {
     let io = |e: std::io::Error| e.to_string();
     let mut setup = Setup::default();
+    setup.cfg.fonts.extend(crate::terminal::installed_fonts());
     // Cache the preview: only re-render when what it shows changes.
     let mut cache: PreviewCache = None;
 
