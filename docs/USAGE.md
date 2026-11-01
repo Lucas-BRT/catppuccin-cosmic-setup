@@ -57,14 +57,17 @@ Commands, flags and their values (flavors, accents, styles, steps) complete.
 ### From a git clone
 
 ```bash
-cargo run --release --manifest-path ctp-cosmic/Cargo.toml            # interactive
-cargo run --release --manifest-path ctp-cosmic/Cargo.toml -- apply --list
-cargo run --release --manifest-path ctp-cosmic/Cargo.toml -- theme --help
-cd ctp-cosmic && cargo test && cargo clippy --all-targets -- -D warnings
+cargo run                       # interactive setup (same as ctp-cosmic)
+cargo run -- apply --list
+cargo run -- theme --help
+cargo run -- apply --dry-run --flavor latte
+cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check
 ```
 
-A cargo build is separate from the `ctp-cosmic` in `~/.local/bin`; `update`
-refuses to run from a cargo build.
+`cargo run` runs the code in the clone, which is separate from the `ctp-cosmic`
+in `~/.local/bin`; `update` refuses to run from a cargo build. Note that
+`cargo run -- apply` changes your desktop like the installed one does: use
+`--dry-run` or a throwaway `HOME` to try things.
 
 ## Options
 

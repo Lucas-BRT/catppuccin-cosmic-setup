@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use crate::palette;
 
-const TEMPLATE: &str = include_str!("../../config/bash/catppuccin-prompt.bash.in");
+const TEMPLATE: &str = include_str!("../config/bash/catppuccin-prompt.bash.in");
 const START: &str = "# >>> catppuccin-cosmic-setup >>>";
 const END: &str = "# <<< catppuccin-cosmic-setup <<<";
 const BLOCK: &str = "[ -f ~/.config/catppuccin/catppuccin-prompt.bash ] && . ~/.config/catppuccin/catppuccin-prompt.bash";

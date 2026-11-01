@@ -1,7 +1,7 @@
 name: Release
 
 # To release:
-#   bump the version in ctp-cosmic/Cargo.toml, then
+#   bump the version in Cargo.toml, then
 #   git tag vX.Y.Z && git push origin vX.Y.Z
 # This builds static ctp-cosmic binaries (x86_64, aarch64) and publishes them
 # with install.sh and a SHA256SUMS file as the latest release, which is what
@@ -35,9 +35,9 @@ jobs:
           TARGET: ${{ matrix.target }}
           ARCH: ${{ matrix.arch }}
         run: |
-          cargo build --release --locked --target "$TARGET" --manifest-path ctp-cosmic/Cargo.toml
+          cargo build --release --locked --target "$TARGET"
           mkdir dist
-          cp "ctp-cosmic/target/$TARGET/release/ctp-cosmic" "dist/ctp-cosmic-$ARCH-linux"
+          cp "target/$TARGET/release/ctp-cosmic" "dist/ctp-cosmic-$ARCH-linux"
       - name: Smoke test
         env:
           ARCH: ${{ matrix.arch }}

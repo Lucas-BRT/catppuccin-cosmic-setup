@@ -12,9 +12,6 @@ jobs:
   ctp-cosmic:
     name: ctp-cosmic (Rust)
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: ctp-cosmic
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
@@ -31,7 +28,7 @@ jobs:
       - name: Committed themes are up to date
         run: |
           target/release/ctp-cosmic theme --all "$RUNNER_TEMP/themes"
-          for f in ../themes/cosmic-settings/*.ron; do
+          for f in themes/cosmic-settings/*.ron; do
             cmp "$f" "$RUNNER_TEMP/themes/$(basename "$f")" || {
               echo "::error::$f is stale; run: ctp-cosmic theme --all and copy the Mocha files"
               exit 1
