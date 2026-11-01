@@ -70,6 +70,7 @@ refuses to run from a cargo build.
 | `WALLPAPER_ROTATE` | `--wallpaper-rotate` | | slideshow interval for `WALLPAPER_STYLE=all`: `5m` `10m` `15m` `30m` `1h` `2h` |
 | `NO_APPLY` | `--no-apply` | `0` | `1` generates the desktop theme without applying it |
 | `TERMINAL_FONT` | `--font` | | COSMIC Terminal font family, e.g. `JetBrainsMono Nerd Font`; list yours with `ctp-cosmic terminal font list`. The default font lacks many icons, so a [Nerd Font](https://www.nerdfonts.com) fits well (install it first). Also a row in the interactive setup |
+| `INSTALL_FONT` | `--install-font` | | downloads a Nerd Font (`JetBrainsMono`, `FiraCode` or `Hack`; pinned release, checked hash, installed for you only in `~/.local/share/fonts`) and uses it as the terminal font. Also `ctp-cosmic terminal font install NAME --set` |
 | `TERMINAL_FONT_SIZE` | `--font-size` | | size for `TERMINAL_FONT` (4 to 96) |
 | `NO_BACKUP` | `--no-backup` | `0` | `1` skips the backup |
 | `NO_TUI` | | `0` | `1` never opens the interactive setup |

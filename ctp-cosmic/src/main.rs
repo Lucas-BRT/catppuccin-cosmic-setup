@@ -12,6 +12,7 @@ mod folders;
 mod health;
 mod icons;
 mod image;
+mod nerdfont;
 mod noise;
 mod palette;
 mod prompt;

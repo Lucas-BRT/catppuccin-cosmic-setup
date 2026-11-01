@@ -50,6 +50,8 @@ pub struct Opts {
     pub rotate: Option<String>,
     pub font: Option<String>,
     pub font_size: Option<u16>,
+    /// Install this Nerd Font first and use it as the terminal font.
+    pub install_font: Option<String>,
     pub steps: Vec<String>,
     #[serde(skip)]
     pub no_apply: bool,
@@ -75,6 +77,7 @@ impl Default for Opts {
             rotate: None,
             font: None,
             font_size: None,
+            install_font: None,
             steps: STEPS
                 .iter()
                 .filter(|s| !s.optional)
@@ -94,7 +97,7 @@ pub struct Parsed {
 }
 
 /// (environment variable, flag name) of every option that takes a value.
-const KEYS: [(&str, &str); 13] = [
+const KEYS: [(&str, &str); 14] = [
     ("FLAVOR", "flavor"),
     ("ACCENT", "accent"),
     ("FROSTED", "frosted"),
@@ -108,6 +111,7 @@ const KEYS: [(&str, &str); 13] = [
     ("WALLPAPER_ROTATE", "wallpaper-rotate"),
     ("TERMINAL_FONT", "font"),
     ("TERMINAL_FONT_SIZE", "font-size"),
+    ("INSTALL_FONT", "install-font"),
 ];
 
 fn set(o: &mut Opts, key: &str, v: &str) -> Result<(), String> {
@@ -125,6 +129,7 @@ fn set(o: &mut Opts, key: &str, v: &str) -> Result<(), String> {
             )
         }
         "window-hint" => o.window_hint = Some(v.into()),
+        "install-font" => o.install_font = Some(v.into()),
         "alpha-offset" => {
             o.alpha_offset = v
                 .parse()
@@ -383,7 +388,12 @@ fn step_terminal(o: &Opts) -> Result<(), String> {
     terminal::apply(&o.flavor, &terminal::default_config_dir()?)?;
     let p = Palette::new(&o.flavor).ok_or("unknown flavor")?;
     ui::ok(&format!("Terminal colors: Catppuccin {}", p.name()));
-    if let Some(font) = &o.font {
+    let installed = o
+        .install_font
+        .as_deref()
+        .map(crate::nerdfont::install)
+        .transpose()?;
+    if let Some(font) = installed.as_ref().or(o.font.as_ref()) {
         terminal::set_font(&terminal::default_config_dir()?, font, o.font_size)?;
         let size = o.font_size.map(|s| format!(" ({s})")).unwrap_or_default();
         ui::ok(&format!("Terminal font: {font}{size}"));
@@ -616,6 +626,8 @@ Options (each also an environment variable; flags win):
   --wallpaper-style NAME   WALLPAPER_STYLE   glow, waves, ... or all (see `wallpaper --help`)
   --wallpaper-rotate T     WALLPAPER_ROTATE   with style all: 5m 10m 15m 30m 1h 2h
   --font NAME              TERMINAL_FONT      COSMIC Terminal font (`terminal font list`)
+  --install-font NAME      INSTALL_FONT       download a Nerd Font (JetBrainsMono, FiraCode, Hack)
+                                             and use it as the terminal font
   --font-size N            TERMINAL_FONT_SIZE
   --no-apply               NO_APPLY=1         only generate the desktop theme
   --no-backup              NO_BACKUP=1        skip the backup
@@ -732,6 +744,7 @@ mod tests {
             args(&["--window-hint", "teal2"]),
             args(&["nosuchstep"]),
             args(&["--wat", "1"]),
+            args(&["--install-font"]),
             args(&["--flavor"]),
         ] {
             assert!(parse(&bad, &no_env, None).is_err(), "{bad:?}");

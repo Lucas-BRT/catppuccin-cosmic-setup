@@ -201,6 +201,8 @@ Usage:
   ctp-cosmic terminal check FLAVOR [--config DIR]
   ctp-cosmic terminal font list                      installed monospace and Nerd Fonts
   ctp-cosmic terminal font set NAME [--size N] [--config DIR]
+  ctp-cosmic terminal font install NAME [--set]      JetBrainsMono, FiraCode or Hack
+                                                     (Nerd Font Mono, for you only)
 
 --config DIR   cosmic-config folder (default: ~/.config/cosmic/com.system76.CosmicTerm/v1)
 ";
@@ -213,6 +215,15 @@ pub fn main(args: Vec<String>) -> Result<u8, String> {
             return Ok(0);
         }
         ["font", "set", name, ref rest @ ..] => return font_set(name, rest),
+        ["font", "install", name, ref rest @ ..] => {
+            let family = crate::nerdfont::install(name)?;
+            println!("{family}");
+            if rest.contains(&"--set") {
+                let dir = default_config_dir()?;
+                set_font(&dir, &family, None)?;
+            }
+            return Ok(0);
+        }
         _ => {}
     }
     let (cmd, flavor, dir) = match args[..] {
