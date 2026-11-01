@@ -170,6 +170,7 @@ fn run(terminal: &mut DefaultTerminal) -> Result<Option<(Config, Progress)>, Str
     let backup = std::env::var("NO_BACKUP").map(|v| v != "1").unwrap_or(true);
     let mut progress = Progress::new(&cfg, backup);
     let (tx, rx) = mpsc::channel();
+    let _ = crate::apply::remember_steps(&cfg.step_args());
     let mut child = spawn(&cfg, tx)?;
     let started = Instant::now();
     loop {

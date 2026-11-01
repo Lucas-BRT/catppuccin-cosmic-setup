@@ -101,6 +101,8 @@ pub struct Parsed {
     pub opts: Opts,
     /// Anything chosen on the command line or in the environment: no interface.
     pub explicit: bool,
+    /// Steps were named: a part of the usual set, not a new selection.
+    pub partial: bool,
 }
 
 /// (environment variable, flag name) of every option that takes a value.
@@ -202,12 +204,17 @@ pub fn parse(
             step => named.push(step.to_string()),
         }
     }
-    if !named.is_empty() {
+    let partial = !named.is_empty();
+    if partial {
         o.steps = named;
         explicit = true;
     }
     validate(&o)?;
-    Ok(Parsed { opts: o, explicit })
+    Ok(Parsed {
+        opts: o,
+        explicit,
+        partial,
+    })
 }
 
 /// Rejects bad values before anything is changed.
@@ -281,6 +288,23 @@ pub fn load_state() -> Result<Opts, String> {
     let text = fs::read_to_string(&file)
         .map_err(|_| "no saved choices yet; run `ctp-cosmic apply` first".to_string())?;
     ron::from_str(&text).map_err(|e| format!("{}: {e}", file.display()))
+}
+
+/// What to keep after a run. A run that named only some steps (`apply bash`,
+/// `status --fix`) must not turn the saved selection into just those.
+fn for_saving(o: &Opts, previous: Option<Opts>, partial: bool) -> Opts {
+    let mut kept = o.clone();
+    if let Some(prev) = previous.filter(|_| partial) {
+        kept.steps = prev.steps;
+    }
+    kept
+}
+
+/// Remembers which steps the interactive setup selected, before it runs them.
+pub fn remember_steps(steps: &[String]) -> Result<(), String> {
+    let mut o = load_state().unwrap_or_default();
+    o.steps = steps.to_vec();
+    save_state(&o)
 }
 
 fn save_state(o: &Opts) -> Result<(), String> {
@@ -635,7 +659,7 @@ pub fn plan(o: &Opts) -> Vec<String> {
 
 /// Runs the chosen steps in installer order. The backup is sealed even if a
 /// step fails, so `uninstall` can still undo what was done.
-pub fn run(o: &Opts) -> Result<(), String> {
+pub fn run(o: &Opts, partial: bool) -> Result<(), String> {
     let backup_dir = if o.no_backup {
         None
     } else {
@@ -661,7 +685,7 @@ pub fn run(o: &Opts) -> Result<(), String> {
         ));
     }
     result?;
-    save_state(o)?;
+    save_state(&for_saving(o, load_state().ok(), partial))?;
     println!();
     println!("Done. If icons or the wallpaper don't change right away, log out and back in.");
     Ok(())
@@ -767,7 +791,7 @@ pub fn main(mut args: Vec<String>) -> Result<u8, String> {
     if !parsed.explicit && env("NO_TUI").as_deref() != Some("1") && interactive() {
         return crate::tui::main(Vec::new());
     }
-    run(&parsed.opts)?;
+    run(&parsed.opts, parsed.partial)?;
     if let Some(name) = save {
         crate::profiles::save(&name, &parsed.opts)?;
         ui::ok(&format!(
@@ -870,6 +894,21 @@ mod tests {
         .unwrap();
         assert_eq!(p.opts.light_flavor.as_deref(), Some("latte"));
         assert!(p.explicit);
+    }
+
+    #[test]
+    fn a_partial_run_keeps_the_saved_selection() {
+        let saved = Opts::default();
+        let ran = Opts {
+            flavor: "latte".into(),
+            steps: vec!["bash".into()],
+            ..Opts::default()
+        };
+        let kept = for_saving(&ran, Some(saved.clone()), true);
+        assert_eq!(kept.steps, saved.steps);
+        assert_eq!(kept.flavor, "latte", "the other choices still update");
+        assert_eq!(for_saving(&ran, Some(saved), false).steps, ["bash"]);
+        assert_eq!(for_saving(&ran, None, true).steps, ["bash"]);
     }
 
     #[test]

@@ -22,11 +22,11 @@ const STATUS_USAGE: &str = "\
 ctp-cosmic status: is what the last apply chose still in place?
 
 Usage:
-  ctp-cosmic status
+  ctp-cosmic status [--fix]
 
 Checks each step of your saved choices against what is on disk now (the
 desktop theme, terminal colors, prompt, Zed, icons, wallpaper). Exits 1 if
-something drifted.
+something drifted. With --fix, reapplies just the steps that drifted.
 ";
 
 pub fn doctor(args: Vec<String>) -> Result<u8, String> {
@@ -136,12 +136,14 @@ pub fn doctor(args: Vec<String>) -> Result<u8, String> {
 
 /// One line of `status`: what was checked and whether it holds.
 pub struct Line {
+    pub step: String,
     pub ok: bool,
     pub text: String,
 }
 
 fn line(ok: bool, text: impl Into<String>) -> Line {
     Line {
+        step: String::new(),
         ok,
         text: text.into(),
     }
@@ -158,7 +160,7 @@ pub fn check(o: &Opts, home: &Path) -> Vec<Line> {
     let read = |path: &Path| fs::read_to_string(path).unwrap_or_default();
     let mut out = Vec::new();
     for step in o.steps.iter().map(String::as_str) {
-        out.push(match step {
+        let mut checked = match step {
             "cosmic" => {
                 // One mode's theme: its accent and its base color are in place.
                 let themed = |flavor: &str| {
@@ -220,13 +222,16 @@ pub fn check(o: &Opts, home: &Path) -> Vec<Line> {
                 )
             }
             other => line(false, format!("unknown step '{other}'")),
-        });
+        };
+        checked.step = step.to_string();
+        out.push(checked);
     }
     out
 }
 
 pub fn status(args: Vec<String>) -> Result<u8, String> {
-    if !args.is_empty() {
+    let fix = args.iter().any(|a| a == "--fix");
+    if args.iter().any(|a| a != "--fix") {
         print!("{STATUS_USAGE}");
         return Ok(u8::from(
             !matches!(args[..], [ref h] if h == "-h" || h == "--help"),
@@ -235,22 +240,38 @@ pub fn status(args: Vec<String>) -> Result<u8, String> {
     let o = load_state()?;
     println!("last apply: {} {}", o.flavor, o.accent);
     let lines = check(&o, &home()?);
-    let mut drifted = false;
+    let drifted: Vec<String> = lines
+        .iter()
+        .filter(|l| !l.ok)
+        .map(|l| l.step.clone())
+        .collect();
     for l in &lines {
         if l.ok {
             ui::ok(&l.text);
         } else {
-            drifted = true;
             println!(
                 "\x1b[38;2;243;139;168m ✗\x1b[0m {} (changed or not applied)",
                 l.text
             );
         }
     }
-    if drifted {
-        println!("Reapply with: ctp-cosmic apply --last");
+    if drifted.is_empty() {
+        return Ok(0);
     }
-    Ok(u8::from(drifted))
+    if !fix {
+        println!(
+            "Reapply with: ctp-cosmic apply --last   (or just these: ctp-cosmic status --fix)"
+        );
+        return Ok(1);
+    }
+    println!();
+    println!("Reapplying: {}", drifted.join(", "));
+    let partial = Opts {
+        steps: drifted,
+        ..o
+    };
+    crate::apply::run(&partial, true)?;
+    Ok(0)
 }
 
 #[cfg(test)]
