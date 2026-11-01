@@ -10,7 +10,7 @@
 //!
 //! The tests parse every generated theme with libcosmic's own ThemeBuilder.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::palette::{self, Palette};
 
@@ -265,6 +265,8 @@ Usage:
                                          frosted, as catppuccin-<flavor>-<accent>+<roundness>[+frosted].ron
 
 Apply one with: cosmic-settings appearance import FILE
+Or let the installer do it, keeping your density and Frosted Glass:
+  ctp-cosmic theme install --help
 
 Options:
   --flavor NAME        latte, frappe, macchiato, mocha (default: mocha)
@@ -288,7 +290,213 @@ Options:
   -h, --help           show this help
 ";
 
+fn validate(o: &Options) -> Result<(), String> {
+    palette::check(&o.flavor, Some(&o.accent))?;
+    if let Some(h) = &o.window_hint {
+        palette::check(&o.flavor, Some(h))?;
+    }
+    if !ROUNDNESS.iter().any(|(n, _)| *n == o.roundness) {
+        return Err(format!(
+            "unknown roundness '{}' (choose: round, slightlyround, square)",
+            o.roundness
+        ));
+    }
+    if !DENSITY.iter().any(|(n, _)| *n == o.density) {
+        return Err(format!(
+            "unknown density '{}' (choose: compact, standard, spacious)",
+            o.density
+        ));
+    }
+    if let Some(f) = &o.frosted
+        && !BLUR.iter().any(|b| b.1 == f)
+    {
+        return Err(format!("unknown --frosted strength '{f}' (see --help)"));
+    }
+    let mut bad: Vec<_> = o
+        .frost_on
+        .iter()
+        .filter(|t| !FROST_TARGETS.contains(&t.as_str()))
+        .cloned()
+        .collect();
+    if !bad.is_empty() {
+        bad.sort();
+        bad.dedup();
+        return Err(format!("unknown --frost-on value: {}", bad.join(", ")));
+    }
+    Ok(())
+}
+
+/// Every flavor and accent, solid and frosted, into `dir`. Returns how many.
+fn write_all(dir: &Path, o: &Options) -> Result<usize, String> {
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let strength = o.frosted.clone().unwrap_or_else(|| "medium".into());
+    let mut n = 0;
+    for flavor in palette::flavors() {
+        for accent in palette::accents() {
+            for frosted in [None, Some(strength.clone())] {
+                let t = Options {
+                    flavor: flavor.into(),
+                    accent: accent.into(),
+                    frosted: frosted.clone(),
+                    ..o.clone()
+                };
+                let path = dir.join(filename(flavor, accent, &o.roundness, frosted.is_some()));
+                std::fs::write(&path, build(&t)).map_err(|e| format!("{}: {e}", path.display()))?;
+                n += 1;
+            }
+        }
+    }
+    Ok(n)
+}
+
+/// Frosted Glass as COSMIC has it now: the strength key and the places it
+/// applies to, or None when it is off everywhere. COSMIC keeps each option in
+/// its own file: `frosted` = "ExtremelyLow2", `frosted_windows` = "true", ...
+fn current_frost(builder: &Path) -> Option<(String, Vec<String>)> {
+    let read = |key: &str| std::fs::read_to_string(builder.join(key)).ok();
+    let on: Vec<String> = FROST_TARGETS
+        .iter()
+        .filter(|t| read(&format!("frosted_{t}")).is_some_and(|v| v.trim() == "true"))
+        .map(|t| t.to_string())
+        .collect();
+    if on.is_empty() {
+        return None;
+    }
+    let strength = read("frosted")
+        .and_then(|v| {
+            BLUR.iter()
+                .find(|b| b.0 == v.trim().trim_matches('"'))
+                .map(|b| b.1)
+        })
+        .unwrap_or("medium");
+    Some((strength.to_string(), on))
+}
+
+/// The interface density set under Appearance (the theme carries its spacing).
+fn current_density(config: &Path) -> String {
+    std::fs::read_to_string(config.join("com.system76.CosmicTk/v1/interface_density"))
+        .map(|v| v.trim().trim_matches('"').to_lowercase())
+        .ok()
+        .filter(|v| DENSITY.iter().any(|(n, _)| n == v))
+        .unwrap_or_else(|| "standard".into())
+}
+
+const INSTALL_USAGE: &str = "\
+ctp-cosmic theme install: generate the theme and apply it
+
+Usage:
+  ctp-cosmic theme install [--flavor NAME] [--accent NAME] [--alpha-offset N]
+                           [--frosted auto|off|STRENGTH] [--frost-on LIST]
+                           [--no-apply] [--config DIR] [--data-dir DIR]
+
+Keeps your interface density. --frosted auto (default) keeps the current
+Frosted Glass setting (strength and places); off turns it off; a strength
+(see `theme --help`) turns it on in the --frost-on places. Writes every theme
+into --data-dir (default ~/.local/share/catppuccin/themes/cosmic-settings),
+then imports the chosen one with `cosmic-settings appearance import` unless
+--no-apply. Prints what Frosted Glass is set to, then the theme file.
+";
+
+fn install(args: Vec<String>) -> Result<(), String> {
+    let mut o = Options::default();
+    let (mut frosted, mut frost_on) = ("auto".to_string(), None::<Vec<String>>);
+    let (mut apply, mut config, mut data) = (true, None::<PathBuf>, None::<PathBuf>);
+    let mut it = args.into_iter();
+    while let Some(arg) = it.next() {
+        let mut value = |name: &str| it.next().ok_or(format!("{name} needs a value"));
+        match arg.as_str() {
+            "-h" | "--help" => {
+                print!("{INSTALL_USAGE}");
+                return Ok(());
+            }
+            "--flavor" => o.flavor = value("--flavor")?,
+            "--accent" => o.accent = value("--accent")?,
+            "--alpha-offset" => {
+                let v = value("--alpha-offset")?;
+                o.alpha_offset = v
+                    .parse()
+                    .map_err(|_| format!("invalid --alpha-offset '{v}'"))?;
+            }
+            "--frosted" => frosted = value("--frosted")?,
+            "--frost-on" => {
+                frost_on = Some(
+                    value("--frost-on")?
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect(),
+                )
+            }
+            "--no-apply" => apply = false,
+            "--config" => config = Some(value("--config")?.into()),
+            "--data-dir" => data = Some(value("--data-dir")?.into()),
+            s => return Err(format!("unexpected argument '{s}'\n\n{INSTALL_USAGE}")),
+        }
+    }
+    let home = || {
+        std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .ok_or("HOME not set".to_string())
+    };
+    let config = match config {
+        Some(c) => c,
+        None => home()?.join(".config/cosmic"),
+    };
+    let data = match data {
+        Some(d) => d,
+        None => home()?.join(".local/share/catppuccin/themes/cosmic-settings"),
+    };
+
+    let dark = palette::check(&o.flavor, Some(&o.accent))?.is_dark();
+    let builder = config.join(format!(
+        "com.system76.CosmicTheme.{}.Builder/v2",
+        if dark { "Dark" } else { "Light" }
+    ));
+    let current = current_frost(&builder);
+    let default_on = || FROST_DEFAULT.iter().map(|s| s.to_string()).collect();
+    (o.frosted, o.frost_on) = match (frosted.as_str(), current) {
+        ("off", _) | ("auto", None) => (None, default_on()),
+        ("auto", Some((strength, on))) => (Some(strength), on),
+        (strength, _) => (
+            Some(strength.to_string()),
+            frost_on.unwrap_or_else(default_on),
+        ),
+    };
+    o.density = current_density(&config);
+    validate(&o)?;
+
+    // The generic set for manual import; its own defaults, not this choice.
+    write_all(&data, &Options::default())?;
+    let theme = data.join(format!("catppuccin-{}-{}+custom.ron", o.flavor, o.accent));
+    std::fs::write(&theme, build(&o)).map_err(|e| format!("{}: {e}", theme.display()))?;
+
+    println!(
+        "{}",
+        match &o.frosted {
+            Some(f) => format!("Frosted Glass {f} on {}", o.frost_on.join(",")),
+            None => "solid".to_string(),
+        }
+    );
+    println!("{}", theme.display());
+    if !apply {
+        return Ok(());
+    }
+    let status = std::process::Command::new("cosmic-settings")
+        .args(["appearance", "import"])
+        .arg(&theme)
+        .stdout(std::process::Stdio::null())
+        .status()
+        .map_err(|e| format!("cosmic-settings: {e}"))?;
+    status
+        .success()
+        .then_some(())
+        .ok_or_else(|| format!("cosmic-settings appearance import failed ({status})"))
+}
+
 pub fn main(args: Vec<String>) -> Result<(), String> {
+    if args.first().map(String::as_str) == Some("install") {
+        return install(args[1..].to_vec());
+    }
     let mut o = Options::default();
     let (mut output, mut all): (Option<PathBuf>, Option<PathBuf>) = (None, None);
     let mut it = args.into_iter();
@@ -340,59 +548,10 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
         }
     }
 
-    palette::check(&o.flavor, Some(&o.accent))?;
-    if let Some(h) = &o.window_hint {
-        palette::check(&o.flavor, Some(h))?;
-    }
-    if !ROUNDNESS.iter().any(|(n, _)| *n == o.roundness) {
-        return Err(format!(
-            "unknown roundness '{}' (choose: round, slightlyround, square)",
-            o.roundness
-        ));
-    }
-    if !DENSITY.iter().any(|(n, _)| *n == o.density) {
-        return Err(format!(
-            "unknown density '{}' (choose: compact, standard, spacious)",
-            o.density
-        ));
-    }
-    if let Some(f) = &o.frosted
-        && !BLUR.iter().any(|b| b.1 == f)
-    {
-        return Err(format!("unknown --frosted strength '{f}' (see --help)"));
-    }
-    let mut bad: Vec<_> = o
-        .frost_on
-        .iter()
-        .filter(|t| !FROST_TARGETS.contains(&t.as_str()))
-        .cloned()
-        .collect();
-    if !bad.is_empty() {
-        bad.sort();
-        bad.dedup();
-        return Err(format!("unknown --frost-on value: {}", bad.join(", ")));
-    }
+    validate(&o)?;
 
     if let Some(dir) = all {
-        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        let strength = o.frosted.clone().unwrap_or_else(|| "medium".into());
-        let mut n = 0;
-        for flavor in palette::flavors() {
-            for accent in palette::accents() {
-                for frosted in [None, Some(strength.clone())] {
-                    let t = Options {
-                        flavor: flavor.into(),
-                        accent: accent.into(),
-                        frosted: frosted.clone(),
-                        ..o.clone()
-                    };
-                    let path = dir.join(filename(flavor, accent, &o.roundness, frosted.is_some()));
-                    std::fs::write(&path, build(&t))
-                        .map_err(|e| format!("{}: {e}", path.display()))?;
-                    n += 1;
-                }
-            }
-        }
+        let n = write_all(&dir, &o)?;
         eprintln!("{n} themes in {}", dir.display());
         return Ok(());
     }
@@ -411,6 +570,75 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
 mod tests {
     use super::*;
     use cosmic_theme::ThemeBuilder;
+
+    #[test]
+    fn frost_and_density_are_read_from_cosmic_config() {
+        let dir = std::env::temp_dir().join(format!("ctp-frost-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let builder = dir.join("builder");
+        std::fs::create_dir_all(&builder).unwrap();
+        assert_eq!(current_frost(&builder), None);
+        std::fs::write(builder.join("frosted"), "ExtremelyLow2").unwrap();
+        assert_eq!(current_frost(&builder), None); // no place is on
+        std::fs::write(builder.join("frosted_panel"), "true").unwrap();
+        std::fs::write(builder.join("frosted_windows"), "false").unwrap();
+        assert_eq!(
+            current_frost(&builder),
+            Some(("extremely_low_2".into(), vec!["panel".into()]))
+        );
+
+        assert_eq!(current_density(&dir), "standard");
+        let tk = dir.join("com.system76.CosmicTk/v1");
+        std::fs::create_dir_all(&tk).unwrap();
+        std::fs::write(tk.join("interface_density"), "\"Compact\"").unwrap();
+        assert_eq!(current_density(&dir), "compact");
+        std::fs::write(tk.join("interface_density"), "huge").unwrap();
+        assert_eq!(current_density(&dir), "standard");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn install_keeps_frost_and_density_and_skips_apply() {
+        let dir = std::env::temp_dir().join(format!("ctp-inst-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let builder = dir.join("cfg/com.system76.CosmicTheme.Dark.Builder/v2");
+        std::fs::create_dir_all(&builder).unwrap();
+        std::fs::write(builder.join("frosted"), "High").unwrap();
+        std::fs::write(builder.join("frosted_applets"), "true").unwrap();
+        let args = |extra: &[&str]| -> Vec<String> {
+            [
+                "--flavor",
+                "macchiato",
+                "--accent",
+                "peach",
+                "--no-apply",
+                "--config",
+            ]
+            .into_iter()
+            .map(String::from)
+            .chain([dir.join("cfg").display().to_string()])
+            .chain(["--data-dir".into(), dir.join("out").display().to_string()])
+            .chain(extra.iter().map(|s| s.to_string()))
+            .collect()
+        };
+        install(args(&[])).unwrap();
+        let theme =
+            std::fs::read_to_string(dir.join("out/catppuccin-macchiato-peach+custom.ron")).unwrap();
+        assert!(theme.contains("frosted_applets: true"));
+        assert!(theme.contains("frosted_panel: false"));
+        // Sets: 4 flavors x 14 accents x (solid, frosted), plus the custom one.
+        assert_eq!(
+            std::fs::read_dir(dir.join("out")).unwrap().count(),
+            4 * 14 * 2 + 1
+        );
+
+        install(args(&["--frosted", "off"])).unwrap();
+        let theme =
+            std::fs::read_to_string(dir.join("out/catppuccin-macchiato-peach+custom.ron")).unwrap();
+        assert!(theme.contains("frosted_applets: false"));
+        assert!(install(args(&["--frosted", "bogus"])).is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     fn all_variants() -> Vec<Options> {
         let mut v = Vec::new();

@@ -2,10 +2,11 @@
 # =============================================================================
 # 10 · COSMIC desktop theme
 #
-# Generates the theme in the COSMIC 1.10 format (ThemeBuilder v2) with
-# `ctp-cosmic theme` and applies it with `cosmic-settings appearance import`,
+# `ctp-cosmic theme install` generates the theme in the COSMIC 1.10 format
+# (ThemeBuilder v2) and applies it with `cosmic-settings appearance import`,
 # the same code path as the Import button under Appearance, without opening
-# the window.
+# the window. It keeps the interface density chosen under Appearance and reads
+# the current Frosted Glass setting from COSMIC's config.
 #
 # Frosted Glass (blurred transparency), via FROSTED:
 #   FROSTED=auto    (default) keep the current setting: if it is already on,
@@ -23,52 +24,18 @@
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
 
-builder="$COSMIC_DIR/com.system76.CosmicTheme.Dark.Builder/v2"
-[ "$FLAVOR" = latte ] && builder="$COSMIC_DIR/com.system76.CosmicTheme.Light.Builder/v2"
+info "COSMIC theme ($FLAVOR, $ACCENT accent)"
+args=(--flavor "$FLAVOR" --accent "$ACCENT" --alpha-offset "${ALPHA_OFFSET:-0}" --frosted "${FROSTED:-auto}")
+[ -z "${FROST_ON:-}" ] || args+=(--frost-on "$FROST_ON")
+[ "${NO_APPLY:-0}" != 1 ] || args+=(--no-apply)
+out=$(ctp theme install "${args[@]}")
+label=${out%%$'\n'*}
+theme=${out#*$'\n'}
 
-# Read the current Frosted Glass setting. COSMIC stores each option in its
-# own file: frosted = "Medium", frosted_windows = "true", ...
-current_frost() {
-    local on=() t
-    for t in windows system_interface panel applets maximized_apps; do
-        [ "$(cat "$builder/frosted_$t" 2>/dev/null)" = true ] && on+=("$t")
-    done
-    [ ${#on[@]} -gt 0 ] || return 1
-    # "ExtremelyLow2" → "extremely_low_2", the name the generator expects.
-    FROSTED=$(sed -E 's/([a-z])([A-Z0-9])/\1_\2/g' "$builder/frosted" 2>/dev/null | tr '[:upper:]' '[:lower:]')
-    FROSTED=${FROSTED:-medium}
-    FROST_ON=$(IFS=,; echo "${on[*]}")
-}
-
-FROSTED="${FROSTED:-auto}"
-if [ "$FROSTED" = auto ]; then
-    current_frost || FROSTED=off
-fi
-
-# The theme carries the interface spacing, so match the density chosen under
-# Appearance (Compact / Standard / Spacious) instead of resetting it.
-density=$(tr -d '"' < "$COSMIC_DIR/com.system76.CosmicTk/v1/interface_density" 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)
-case "$density" in compact | standard | spacious) ;; *) density=standard ;; esac
-
-args=(--flavor "$FLAVOR" --accent "$ACCENT" --alpha-offset "${ALPHA_OFFSET:-0}" --density "$density")
-if [ "$FROSTED" = off ]; then
-    label="solid"
-else
-    args+=(--frosted "$FROSTED" --frost-on "${FROST_ON:-windows,system_interface,panel,applets}")
-    label="Frosted Glass $FROSTED on ${FROST_ON:-windows,system_interface,panel,applets}"
-fi
-
-info "COSMIC theme ($FLAVOR, $ACCENT accent, $label)"
-out="$DATA_DIR/themes/cosmic-settings"
-mkdir -p "$out"
-ctp theme --all "$out" 2>/dev/null
-theme="$out/catppuccin-$FLAVOR-$ACCENT+custom.ron"
-ctp theme "${args[@]}" -o "$theme"
-ok "Themes generated in $out"
-
+ok "Style: $label"
+ok "Themes generated in $(dirname "$theme")"
 if [ "${NO_APPLY:-0}" = 1 ]; then
     todo "NO_APPLY=1: to apply, run  cosmic-settings appearance import $theme"
-    exit 0
+else
+    ok "Theme applied ($(basename "$theme"))"
 fi
-cosmic-settings appearance import "$theme" >/dev/null
-ok "Theme applied ($(basename "$theme"))"
