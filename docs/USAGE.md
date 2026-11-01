@@ -70,6 +70,7 @@ refuses to run from a cargo build.
 | --- | --- | --- | --- |
 | `FLAVOR` | `--flavor` | `mocha` | `latte`, `frappe`, `macchiato`, `mocha` |
 | `ACCENT` | `--accent` | `mauve` | `rosewater`, `flamingo`, `pink`, `mauve`, `red`, `maroon`, `peach`, `yellow`, `green`, `teal`, `sky`, `sapphire`, `blue`, `lavender` |
+| `LIGHT_FLAVOR` | `--light-flavor` | | with a dark `FLAVOR`, `latte` for COSMIC's light mode: both themes are installed and COSMIC's automatic switching (Appearance → Auto-switch) is turned on, so it follows sunrise and sunset |
 | `FROSTED` | `--frosted` | `auto` | `auto` keeps your current Frosted Glass setting, `off` disables it, or a strength from `extremely_low` to `extremely_high_2` |
 | `FROST_ON` | `--frost-on` | all but `maximized_apps` | where Frosted Glass applies: `windows`, `system_interface`, `panel`, `applets`, `maximized_apps` |
 | `ALPHA_OFFSET` | `--alpha-offset` | `0` | Frosted Glass opacity tweak (`0.1` more opaque, `-0.1` more transparent) |

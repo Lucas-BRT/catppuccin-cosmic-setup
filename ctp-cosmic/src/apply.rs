@@ -34,6 +34,9 @@ const CTP_FOLDERS: (&str, &str) = (
 pub struct Opts {
     pub flavor: String,
     pub accent: String,
+    /// With a dark `flavor`: the flavor for COSMIC's light mode (latte), and
+    /// the desktop then switches by itself at sunrise and sunset.
+    pub light_flavor: Option<String>,
     /// round, slightlyround or square.
     pub roundness: String,
     /// "OUTER,INNER" gaps between windows.
@@ -68,6 +71,7 @@ impl Default for Opts {
         Self {
             flavor: "mocha".into(),
             accent: "mauve".into(),
+            light_flavor: None,
             roundness: "round".into(),
             gaps: None,
             active_hint: None,
@@ -100,9 +104,10 @@ pub struct Parsed {
 }
 
 /// (environment variable, flag name) of every option that takes a value.
-const KEYS: [(&str, &str); 15] = [
+const KEYS: [(&str, &str); 16] = [
     ("FLAVOR", "flavor"),
     ("ACCENT", "accent"),
+    ("LIGHT_FLAVOR", "light-flavor"),
     ("FROSTED", "frosted"),
     ("FROST_ON", "frost-on"),
     ("ALPHA_OFFSET", "alpha-offset"),
@@ -122,6 +127,7 @@ fn set(o: &mut Opts, key: &str, v: &str) -> Result<(), String> {
     match key {
         "flavor" => o.flavor = v.into(),
         "accent" => o.accent = v.into(),
+        "light-flavor" => o.light_flavor = Some(v.into()),
         "frosted" => o.frosted = v.into(),
         "frost-on" => o.frost_on = Some(v.into()),
         "roundness" => o.roundness = v.into(),
@@ -207,6 +213,12 @@ pub fn parse(
 /// Rejects bad values before anything is changed.
 pub fn validate(o: &Opts) -> Result<(), String> {
     palette::check(&o.flavor, Some(&o.accent))?;
+    if let Some(light) = &o.light_flavor {
+        let light_dark = palette::check(light, Some(&o.accent))?.is_dark();
+        if light_dark || !Palette::new(&o.flavor).is_some_and(|p| p.is_dark()) {
+            return Err("--light-flavor needs a light flavor (latte) with a dark --flavor".into());
+        }
+    }
     let names: Vec<_> = styles::list().iter().map(|(n, _)| *n).collect();
     if o.style != "all" && !names.contains(&o.style.as_str()) {
         return Err(format!(
@@ -372,11 +384,38 @@ fn theme_opts(o: &Opts, config: PathBuf, data: PathBuf) -> Result<theme::Install
 fn step_cosmic(o: &Opts) -> Result<(), String> {
     let home = home()?;
     ui::info(&format!("COSMIC theme ({}, {} accent)", o.flavor, o.accent));
+    // Read before importing anything: importing a theme sets the mode.
+    let mode_dir = home.join(".config/cosmic/com.system76.CosmicTheme.Mode/v1");
+    // No file means COSMIC's default: dark.
+    let was_dark = fs::read_to_string(mode_dir.join("is_dark"))
+        .map(|v| v.trim() != "false")
+        .unwrap_or(true);
     let (label, theme) = theme::install_theme(&theme_opts(
         o,
         home.join(".config/cosmic"),
         home.join(".local/share/catppuccin/themes/cosmic-settings"),
     )?)?;
+    if let Some(light) = &o.light_flavor {
+        // Importing a light theme switches COSMIC to light mode; put the mode
+        // back, then let COSMIC follow sunrise and sunset.
+        let mut t = theme_opts(
+            o,
+            home.join(".config/cosmic"),
+            home.join(".local/share/catppuccin/themes/cosmic-settings"),
+        )?;
+        t.flavor = light.clone();
+        theme::install_theme(&t)?;
+        if !o.no_apply {
+            fs::create_dir_all(&mode_dir).map_err(|e| format!("{}: {e}", mode_dir.display()))?;
+            for (key, value) in [("is_dark", was_dark), ("auto_switch", true)] {
+                fs::write(mode_dir.join(key), value.to_string())
+                    .map_err(|e| format!("{}: {e}", mode_dir.join(key).display()))?;
+            }
+        }
+        ui::ok(&format!(
+            "Light mode: Catppuccin {light}; switches at sunrise and sunset"
+        ));
+    }
     ui::ok(&format!("Style: {label}"));
     ui::ok(&format!(
         "Themes generated in {}",
@@ -645,6 +684,8 @@ Steps: cosmic, terminal, bash, zed, wallpaper, and icons (only when named).
 Options (each also an environment variable; flags win):
   --flavor NAME            FLAVOR            latte, frappe, macchiato, mocha (mocha)
   --accent NAME            ACCENT            any of the 14 accents (mauve)
+  --light-flavor NAME      LIGHT_FLAVOR      with a dark --flavor: latte for COSMIC's light
+                                             mode; the desktop then follows sunrise/sunset
   --frosted auto|off|STR   FROSTED           Frosted Glass: keep the current setting
                                              (auto), off, or a strength such as medium
   --frost-on LIST          FROST_ON          windows,system_interface,panel,applets,
@@ -803,6 +844,8 @@ mod tests {
             args(&["--wat", "1"]),
             args(&["--install-font"]),
             args(&["--wallpaper-image", "/nonexistent/x.png"]),
+            args(&["--light-flavor", "mocha"]),
+            args(&["--flavor", "latte", "--light-flavor", "latte"]),
             args(&["--flavor"]),
         ] {
             assert!(parse(&bad, &no_env, None).is_err(), "{bad:?}");
@@ -815,6 +858,18 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn light_flavor_pairs_a_dark_one_with_latte() {
+        let p = parse(
+            &args(&["--flavor", "macchiato", "--light-flavor", "latte"]),
+            &no_env,
+            None,
+        )
+        .unwrap();
+        assert_eq!(p.opts.light_flavor.as_deref(), Some("latte"));
+        assert!(p.explicit);
     }
 
     #[test]

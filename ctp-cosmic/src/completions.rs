@@ -38,6 +38,7 @@ fn flags(command: &str) -> Vec<(&'static str, Vec<String>)> {
             vec![
                 ("--flavor", list(palette::flavors())),
                 ("--accent", list(palette::accents())),
+                ("--light-flavor", list(vec!["latte"])),
                 ("--frosted", frosted),
                 (
                     "--frost-on",

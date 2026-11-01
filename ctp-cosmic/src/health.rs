@@ -160,16 +160,26 @@ pub fn check(o: &Opts, home: &Path) -> Vec<Line> {
     for step in o.steps.iter().map(String::as_str) {
         out.push(match step {
             "cosmic" => {
-                let mode = if p.is_dark() { "Dark" } else { "Light" };
-                let builder = cosmic.join(format!("com.system76.CosmicTheme.{mode}.Builder/v2"));
-                let accent = format!("#{}FF", p.hex(&o.accent).to_uppercase());
-                let base = format!("#{}FF", p.hex("base").to_uppercase());
-                let ok = read(&builder.join("accent")).contains(&accent)
-                    && read(&builder.join("palette")).contains(&base);
-                line(
-                    ok,
-                    format!("desktop theme: {name}, {} accent ({mode} mode)", o.accent),
-                )
+                // One mode's theme: its accent and its base color are in place.
+                let themed = |flavor: &str| {
+                    let Some(p) = Palette::new(flavor) else {
+                        return false;
+                    };
+                    let mode = if p.is_dark() { "Dark" } else { "Light" };
+                    let builder =
+                        cosmic.join(format!("com.system76.CosmicTheme.{mode}.Builder/v2"));
+                    let accent = format!("#{}FF", p.hex(&o.accent).to_uppercase());
+                    let base = format!("#{}FF", p.hex("base").to_uppercase());
+                    read(&builder.join("accent")).contains(&accent)
+                        && read(&builder.join("palette")).contains(&base)
+                };
+                let mut what = format!("{name}, {} accent", o.accent);
+                let mut ok = themed(&o.flavor);
+                if let Some(light) = &o.light_flavor {
+                    ok &= themed(light);
+                    what.push_str(&format!(" + Catppuccin {light} in light mode"));
+                }
+                line(ok, format!("desktop theme: {what}"))
             }
             "terminal" => line(
                 terminal::check(&o.flavor, &cosmic.join("com.system76.CosmicTerm/v1"))
