@@ -20,8 +20,6 @@ CTP_FOLDERS_REPO=https://github.com/catppuccin/papirus-folders.git
 CTP_FOLDERS_REV=f83671d17ea67e335b34f8028a7e6d78bca735d7
 PAPIRUS_REPO=https://github.com/PapirusDevelopmentTeam/papirus-icon-theme.git
 PAPIRUS_REV=bf539287ef5dc18529424a02cccee76175920a6f
-PAPIRUS_FOLDERS_REPO=https://github.com/PapirusDevelopmentTeam/papirus-folders.git
-PAPIRUS_FOLDERS_REV=0f838ee5679229e3a3e97e3b333c222c9e9615b4
 
 # Colored messages using the palette itself.
 info() { printf '\e[38;2;137;180;250m==>\e[0m %s\n' "$*"; }   # blue
@@ -102,9 +100,6 @@ FLAVOR="${FLAVOR:-mocha}"
 ACCENT="${ACCENT:-mauve}"
 ctp palette check "$FLAVOR" "$ACCENT"
 
-# Papirus has a dark and a light variant; Latte is the only light flavor.
-if ctp palette is-dark "$FLAVOR"; then ICON_THEME=Papirus-Dark; else ICON_THEME=Papirus; fi
-
 # Wallpaper style, or "all" to render every style into a folder for COSMIC's
 # wallpaper picker. The default "glow" keeps the plain
 # catppuccin-<flavor>-<accent>.png name.
@@ -146,11 +141,4 @@ fetch_pinned() {
     curl -fsSL --proto '=https' --tlsv1.2 "https://codeload.github.com/$slug/tar.gz/$rev" |
         tar -xz -C "$dest" --strip-components=1
     printf '%s\n' "$rev" > "$dest/.pinned-rev"
-}
-
-# Write a cosmic-config key. Each key is a file holding one RON value.
-cosmic_set() {
-    local component=$1 key=$2 value=$3
-    mkdir -p "$COSMIC_DIR/$component/v1"
-    printf '%s' "$value" > "$COSMIC_DIR/$component/v1/$key"
 }
