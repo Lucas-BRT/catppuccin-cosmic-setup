@@ -9,7 +9,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Paragraph, Widget, Wrap};
 
 use super::app::{
-    Config, FROSTED, Field, Progress, ROTATE, ROUNDNESS, STEPS, Setup, Status, fields,
+    Config, FROSTED, Field, LIGHT, Progress, ROTATE, ROUNDNESS, STEPS, Setup, Status, fields,
 };
 use crate::palette::{self, Palette};
 
@@ -136,7 +136,24 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
     };
     let p = Palette::new(c.flavor_id()).unwrap();
     lines.push(Line::raw(""));
+    lines.push(row(
+        Field::Profile,
+        "Profile",
+        c.profiles[c.profile].clone(),
+        c.profiles.len() > 1,
+    ));
     lines.push(row(Field::Flavor, "Flavor", p.name(), true));
+    let light_on = c.steps[0] && c.flavor_is_dark();
+    lines.push(row(
+        Field::Light,
+        "Light mode",
+        if c.flavor_is_dark() {
+            LIGHT[c.light].to_string()
+        } else {
+            "—".to_string()
+        },
+        light_on,
+    ));
     lines.push(row(
         Field::Accent,
         "Accent",
@@ -234,7 +251,7 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
             },
         ),
     ]));
-    debug_assert_eq!(fields().len(), 8 + STEPS.len());
+    debug_assert_eq!(fields().len(), 10 + STEPS.len());
     f.render_widget(Paragraph::new(lines), inner);
 
     // Right: live preview.

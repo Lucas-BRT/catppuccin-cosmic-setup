@@ -26,11 +26,20 @@ pub const FROSTED: [&str; 16] = [
     "extremely_high_2",
 ];
 
+/// COSMIC's light mode flavor: off, or Latte with automatic switching.
+pub const LIGHT: [&str; 2] = ["off", "latte"];
+
+/// First entry of `Config::profiles`.
+pub const NO_PROFILE: &str = "none";
+
 /// Corner roundness of the desktop theme.
 pub const ROUNDNESS: [&str; 3] = ["round", "slightlyround", "square"];
 
 /// Slideshow intervals COSMIC Settings offers (only with every style).
 pub const ROTATE: [&str; 7] = ["off", "5m", "10m", "15m", "30m", "1h", "2h"];
+
+/// Start of the font entries that download a Nerd Font first.
+pub const DOWNLOAD: &str = "+ ";
 
 /// First entry of `Config::fonts`.
 pub const KEEP_FONT: &str = "keep current";
@@ -38,7 +47,9 @@ pub const KEEP_FONT: &str = "keep current";
 /// The rows of the configuration screen, top to bottom.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Field {
+    Profile,
     Flavor,
+    Light,
     Accent,
     Frosted,
     Roundness,
@@ -51,7 +62,9 @@ pub enum Field {
 
 pub fn fields() -> Vec<Field> {
     let mut f = vec![
+        Field::Profile,
         Field::Flavor,
+        Field::Light,
         Field::Accent,
         Field::Frosted,
         Field::Roundness,
@@ -68,6 +81,11 @@ pub fn fields() -> Vec<Field> {
 #[derive(Clone, Debug)]
 pub struct Config {
     pub flavor: usize,
+    /// Index into `LIGHT`; only with a dark flavor.
+    pub light: usize,
+    /// Index into `profiles`; choosing one loads its values.
+    pub profile: usize,
+    pub profiles: Vec<String>,
     pub accent: usize,
     pub frosted: usize,
     pub roundness: usize,
@@ -86,6 +104,9 @@ impl Default for Config {
         let accents = palette::accents();
         Self {
             flavor: flavors.iter().position(|f| *f == "mocha").unwrap_or(0),
+            light: 0,
+            profile: 0,
+            profiles: vec![NO_PROFILE.to_string()],
             accent: accents.iter().position(|a| *a == "mauve").unwrap_or(0),
             frosted: 0,
             roundness: 0,
@@ -107,6 +128,9 @@ impl Config {
         let rotate = o.rotate.as_deref().map_or(0, |r| find(&ROTATE, r));
         Self {
             flavor: find(&palette::flavors(), &o.flavor),
+            light: usize::from(o.light_flavor.is_some()),
+            profile: 0,
+            profiles: vec![NO_PROFILE.to_string()],
             accent: find(&palette::accents(), &o.accent),
             frosted: find(&FROSTED, &o.frosted),
             roundness: find(&ROUNDNESS, &o.roundness),
@@ -141,6 +165,9 @@ impl Config {
     pub fn style_id(&self) -> &'static str {
         wallpaper_choices()[self.style]
     }
+    pub fn flavor_is_dark(&self) -> bool {
+        palette::Palette::new(self.flavor_id()).is_some_and(|p| p.is_dark())
+    }
     pub fn slideshow_available(&self) -> bool {
         self.style_id() == "all"
     }
@@ -167,11 +194,24 @@ impl Config {
         if self.slideshow_available() && self.rotate > 0 {
             env.push(("WALLPAPER_ROTATE", ROTATE[self.rotate].to_string()));
         }
+        if self.light > 0 && self.flavor_is_dark() {
+            env.push(("LIGHT_FLAVOR", LIGHT[self.light].to_string()));
+        }
         if self.roundness > 0 {
             env.push(("ROUNDNESS", ROUNDNESS[self.roundness].to_string()));
         }
         if self.font > 0 {
-            env.push(("TERMINAL_FONT", self.fonts[self.font].clone()));
+            // "+ JetBrainsMono Nerd Font (download)" installs, others just select.
+            match self.fonts[self.font].strip_prefix(DOWNLOAD) {
+                Some(rest) => env.push((
+                    "INSTALL_FONT",
+                    rest.split_whitespace()
+                        .next()
+                        .unwrap_or_default()
+                        .to_string(),
+                )),
+                None => env.push(("TERMINAL_FONT", self.fonts[self.font].clone())),
+            }
         }
         env
     }
@@ -210,7 +250,18 @@ impl Setup {
         let field = self.current();
         let c = &mut self.cfg;
         match field {
+            Field::Profile => {
+                cycle(&mut c.profile, c.profiles.len(), forward);
+                if c.profile > 0
+                    && let Ok(o) = crate::profiles::load(&c.profiles[c.profile])
+                {
+                    let (profile, profiles) = (c.profile, c.profiles.clone());
+                    *c = Config::from_opts(&o, c.fonts[1..].to_vec());
+                    (c.profile, c.profiles) = (profile, profiles);
+                }
+            }
             Field::Flavor => cycle(&mut c.flavor, palette::flavors().len(), forward),
+            Field::Light => cycle(&mut c.light, LIGHT.len(), forward),
             Field::Accent => cycle(&mut c.accent, palette::accents().len(), forward),
             Field::Frosted => cycle(&mut c.frosted, FROSTED.len(), forward),
             Field::Roundness => cycle(&mut c.roundness, ROUNDNESS.len(), forward),
@@ -414,22 +465,27 @@ mod tests {
     fn keys_change_the_config() {
         let mut s = Setup::default();
         assert_eq!(s.cfg.flavor_id(), "mocha");
+        goto(&mut s, Field::Flavor);
         press(&mut s, KeyCode::Right); // flavor wraps to latte
         assert_eq!(s.cfg.flavor_id(), "latte");
-        press(&mut s, KeyCode::Down);
+        goto(&mut s, Field::Accent);
         press(&mut s, KeyCode::Left); // accent before mauve
         assert_eq!(s.cfg.accent_id(), "pink");
         // Slideshow is locked until the wallpaper is "all".
-        s.field = 5;
+        goto(&mut s, Field::Slideshow);
         press(&mut s, KeyCode::Right);
         assert_eq!(s.cfg.rotate, 0);
         assert!(s.message.is_some());
-        s.field = 4;
+        goto(&mut s, Field::Wallpaper);
         press(&mut s, KeyCode::Left); // glow → all
         assert_eq!(s.cfg.style_id(), "all");
-        s.field = 5;
+        goto(&mut s, Field::Slideshow);
         press(&mut s, KeyCode::Right);
         assert!(s.cfg.env().contains(&("WALLPAPER_ROTATE", "5m".into())));
+    }
+
+    fn goto(s: &mut Setup, f: Field) {
+        s.field = fields().iter().position(|x| *x == f).unwrap();
     }
 
     #[test]
@@ -437,6 +493,25 @@ mod tests {
         for label in &ROTATE[1..] {
             assert!(crate::steps::rotate_seconds(label).is_ok(), "{label}");
         }
+    }
+
+    #[test]
+    fn light_mode_and_downloaded_fonts_reach_the_environment() {
+        let mut s = Setup::default();
+        s.cfg.fonts.push("+ Hack Nerd Font (download)".into());
+        goto(&mut s, Field::Light);
+        press(&mut s, KeyCode::Right);
+        assert!(s.cfg.env().contains(&("LIGHT_FLAVOR", "latte".to_string())));
+        // A light flavor has no use for a light mode of its own.
+        s.cfg.flavor = palette::flavors()
+            .iter()
+            .position(|f| *f == "latte")
+            .unwrap();
+        assert!(!s.cfg.env().iter().any(|(k, _)| *k == "LIGHT_FLAVOR"));
+        goto(&mut s, Field::Font);
+        press(&mut s, KeyCode::Right);
+        assert!(s.cfg.env().contains(&("INSTALL_FONT", "Hack".to_string())));
+        assert!(!s.cfg.env().iter().any(|(k, _)| *k == "TERMINAL_FONT"));
     }
 
     #[test]
@@ -474,7 +549,7 @@ mod tests {
         let mut s = Setup::default();
         s.cfg.fonts.push("Fira Mono".into());
         assert!(!s.cfg.env().iter().any(|(k, _)| *k == "TERMINAL_FONT"));
-        s.field = 6;
+        goto(&mut s, Field::Font);
         assert_eq!(s.current(), Field::Font);
         press(&mut s, KeyCode::Right);
         assert!(
@@ -495,12 +570,12 @@ mod tests {
             ["cosmic", "terminal", "bash", "zed", "wallpaper"]
         );
         for i in (0..STEPS.len()).filter(|i| !STEPS[*i].optional) {
-            s.field = 7 + i;
+            goto(&mut s, Field::Step(i));
             press(&mut s, KeyCode::Char(' '));
         }
         assert!(s.cfg.step_args().is_empty());
         assert_eq!(press(&mut s, KeyCode::Enter), Action::None);
-        s.field = 7 + 2;
+        goto(&mut s, Field::Step(2));
         press(&mut s, KeyCode::Char(' '));
         assert_eq!(s.cfg.step_args(), ["bash"]);
         assert_eq!(press(&mut s, KeyCode::Enter), Action::Install);

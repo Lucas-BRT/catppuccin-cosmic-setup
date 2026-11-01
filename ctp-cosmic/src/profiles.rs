@@ -63,7 +63,7 @@ pub fn load(name: &str) -> Result<Opts, String> {
     parse(&text, &file)
 }
 
-fn names() -> Result<Vec<String>, String> {
+pub fn names() -> Result<Vec<String>, String> {
     let mut out: Vec<String> = match fs::read_dir(dir()?) {
         Ok(rd) => rd
             .flatten()

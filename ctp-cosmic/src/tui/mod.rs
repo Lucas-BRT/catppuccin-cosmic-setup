@@ -117,7 +117,15 @@ fn summary(cfg: &Config, p: &Progress) -> String {
 fn run(terminal: &mut DefaultTerminal) -> Result<Option<(Config, Progress)>, String> {
     let io = |e: std::io::Error| e.to_string();
     let mut setup = Setup::default();
-    let fonts = crate::terminal::installed_fonts();
+    let fonts: Vec<String> = crate::terminal::installed_fonts()
+        .into_iter()
+        .chain(
+            crate::nerdfont::names()
+                .into_iter()
+                .map(|n| format!("{}{n} Nerd Font (download)", app::DOWNLOAD)),
+        )
+        .collect();
+    let profiles = crate::profiles::names().unwrap_or_default();
     // Start from the last successful choices, if there are any.
     setup.cfg = match crate::apply::load_state() {
         Ok(last) => Config::from_opts(&last, fonts),
@@ -126,6 +134,7 @@ fn run(terminal: &mut DefaultTerminal) -> Result<Option<(Config, Progress)>, Str
             setup.cfg
         }
     };
+    setup.cfg.profiles.extend(profiles);
     // Cache the preview: only re-render when what it shows changes.
     let mut cache: PreviewCache = None;
 
