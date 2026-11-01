@@ -28,7 +28,7 @@ if [ -d "$backup/cosmic" ]; then
 fi
 [ -f "$backup/.bashrc" ] && cp -a "$backup/.bashrc" "$HOME/.bashrc"
 [ -f "$backup/settings.json" ] && cp -a "$backup/settings.json" "$HOME/.config/zed/settings.json"
-sed -i '/^# >>> catppuccin-cosmic-setup >>>$/,/^# <<< catppuccin-cosmic-setup <<<$/d' "$HOME/.bashrc"
+ctp prompt remove
 ok "Settings restored"
 
 if [ "${PURGE:-0}" = 1 ]; then
