@@ -48,6 +48,8 @@ pub struct Opts {
     pub no_apply: bool,
     #[serde(skip)]
     pub no_backup: bool,
+    #[serde(skip)]
+    pub dry_run: bool,
 }
 
 impl Default for Opts {
@@ -69,6 +71,7 @@ impl Default for Opts {
                 .collect(),
             no_apply: false,
             no_backup: false,
+            dry_run: false,
         }
     }
 }
@@ -156,6 +159,7 @@ pub fn parse(
             "--last" => {}
             "--no-apply" => (o.no_apply, explicit) = (true, true),
             "--no-backup" => (o.no_backup, explicit) = (true, true),
+            "--dry-run" => (o.dry_run, explicit) = (true, true),
             flag if flag.starts_with("--") => {
                 let key = &flag[2..];
                 let v = it.next().ok_or(format!("{flag} needs a value"))?;
@@ -383,12 +387,17 @@ fn step_bash(o: &Opts) -> Result<(), String> {
     Ok(())
 }
 
-fn zed_installed(home: &Path) -> bool {
+/// Whether one of `bins` is a file in ~/.local/bin or on PATH.
+pub fn which(home: &Path, bins: &[&str]) -> bool {
     let path = std::env::var_os("PATH").unwrap_or_default();
     let mut dirs: Vec<PathBuf> = vec![home.join(".local/bin")];
     dirs.extend(std::env::split_paths(&path));
     dirs.iter()
-        .any(|d| ["zed", "zeditor"].iter().any(|b| d.join(b).is_file()))
+        .any(|d| bins.iter().any(|b| d.join(b).is_file()))
+}
+
+fn zed_installed(home: &Path) -> bool {
+    which(home, &["zed", "zeditor"])
 }
 
 fn step_zed(o: &Opts) -> Result<(), String> {
@@ -503,6 +512,38 @@ fn step_wallpaper(o: &Opts) -> Result<(), String> {
     Ok(())
 }
 
+/// What `apply` would do, step by step. A description, not a simulation:
+/// nothing is read from COSMIC or downloaded to write it.
+pub fn plan(o: &Opts) -> Vec<String> {
+    let name = Palette::new(&o.flavor)
+        .map(|p| p.name())
+        .unwrap_or_default();
+    let mut out = Vec::new();
+    if !o.no_backup {
+        out.push("back up ~/.config/cosmic, ~/.bashrc and Zed's settings.json to ~/.config/catppuccin-backup-<date>".into());
+    }
+    for s in STEPS.iter().filter(|s| o.steps.iter().any(|n| n == s.name)) {
+        out.push(match s.name {
+            "cosmic" => format!(
+                "cosmic: write every theme to ~/.local/share/catppuccin/themes/cosmic-settings, then {} catppuccin-{}-{}+custom.ron (Frosted Glass: {}, keeping your density)",
+                if o.no_apply { "only write" } else { "import with cosmic-settings" },
+                o.flavor, o.accent, o.frosted
+            ),
+            "terminal" => format!(
+                "terminal: add Catppuccin {name} to COSMIC Terminal's color schemes and select it{}",
+                o.font.as_ref().map(|f| format!("; font {f}")).unwrap_or_default()
+            ),
+            "bash" => "bash: write ~/.config/catppuccin/catppuccin-prompt.bash and add a marked block to ~/.bashrc".into(),
+            "zed" => format!("zed: set theme and icon_theme to Catppuccin {name} in ~/.config/zed/settings.json (skipped if Zed is not installed)"),
+            "icons" => format!("icons: download Papirus and the Catppuccin folders (pinned), install them in ~/.local/share/icons with cat-{}-{} folders, select the theme in COSMIC", o.flavor, o.accent),
+            "wallpaper" if o.style == "all" => format!("wallpaper: render every style into ~/Pictures/Wallpapers/catppuccin-{}-{}, add the folder to Settings → Wallpaper{}", o.flavor, o.accent, o.rotate.as_ref().map(|r| format!(", slideshow every {r}")).unwrap_or_default()),
+            "wallpaper" => format!("wallpaper: render the {} style into ~/Pictures/Wallpapers and set it as the background", o.style),
+            other => other.to_string(),
+        });
+    }
+    out
+}
+
 /// Runs the chosen steps in installer order. The backup is sealed even if a
 /// step fails, so `uninstall` can still undo what was done.
 pub fn run(o: &Opts) -> Result<(), String> {
@@ -563,6 +604,7 @@ Options (each also an environment variable; flags win):
   --font-size N            TERMINAL_FONT_SIZE
   --no-apply               NO_APPLY=1         only generate the desktop theme
   --no-backup              NO_BACKUP=1        skip the backup
+  --dry-run                                   say what would be done, change nothing
                            NO_TUI=1           never open the interactive setup
 
 What the run changed is recorded; `ctp-cosmic uninstall` undoes it.
@@ -595,6 +637,14 @@ pub fn main(args: Vec<String>) -> Result<u8, String> {
         .transpose()?;
     let env = |k: &str| std::env::var(k).ok();
     let parsed = parse(&args, &env, last)?;
+    if parsed.opts.dry_run {
+        println!(
+            "ctp-cosmic would ({} {}):",
+            parsed.opts.flavor, parsed.opts.accent
+        );
+        plan(&parsed.opts).iter().for_each(|l| println!("  - {l}"));
+        return Ok(0);
+    }
     if !parsed.explicit && env("NO_TUI").as_deref() != Some("1") && interactive() {
         return crate::tui::main(Vec::new());
     }
@@ -675,6 +725,23 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn dry_run_plans_every_chosen_step_and_nothing_else() {
+        let p = parse(
+            &args(&["--dry-run", "--no-backup", "bash", "icons"]),
+            &no_env,
+            None,
+        )
+        .unwrap();
+        assert!(p.opts.dry_run && p.explicit);
+        let steps = plan(&p.opts);
+        assert_eq!(steps.len(), 2);
+        assert!(steps[0].starts_with("bash:") && steps[1].starts_with("icons:"));
+        // Every default step has a line, plus the backup.
+        let all = plan(&Opts::default());
+        assert_eq!(all.len(), 6);
     }
 
     #[test]

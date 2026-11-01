@@ -1,7 +1,7 @@
 //! `ctp-cosmic prompt`: the bash prompt and the marked block in ~/.bashrc.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::palette;
 
@@ -70,6 +70,15 @@ pub fn install(flavor: &str, accent: &str) -> Result<(), String> {
     let bashrc = home.join(".bashrc");
     let text = with_block(&read_bashrc(&bashrc)?);
     fs::write(&bashrc, text).map_err(|e| format!("{}: {e}", bashrc.display()))
+}
+
+/// Whether the prompt for this accent is installed and sourced from ~/.bashrc.
+pub fn installed(home: &Path, accent: &str, p: &palette::Palette) -> bool {
+    let file = fs::read_to_string(home.join(".config/catppuccin/catppuccin-prompt.bash"));
+    let c = p.get(accent);
+    let rgb = format!("{};{};{}", c[0] as u8, c[1] as u8, c[2] as u8);
+    file.is_ok_and(|f| f.contains(&rgb))
+        && fs::read_to_string(home.join(".bashrc")).is_ok_and(|b| b.contains(START))
 }
 
 pub fn remove() -> Result<(), String> {

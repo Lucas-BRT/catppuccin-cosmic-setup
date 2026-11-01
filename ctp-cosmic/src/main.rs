@@ -8,6 +8,7 @@ mod apply;
 mod background;
 mod backup;
 mod folders;
+mod health;
 mod icons;
 mod image;
 mod noise;
@@ -33,6 +34,8 @@ Usage:
   ctp-cosmic [apply] ...                     put Catppuccin on the desktop, terminal,
                                              prompt, Zed, icons and wallpaper
                                              (interactive in a terminal, no options)
+  ctp-cosmic status ...                      is what the last apply chose still in place?
+  ctp-cosmic doctor ...                      is everything apply needs on this machine?
   ctp-cosmic update ...                      install the latest release
   ctp-cosmic uninstall ...                   undo the last apply
   ctp-cosmic theme ...                       desktop themes (COSMIC 1.10)
@@ -52,6 +55,8 @@ fn main() -> ExitCode {
     let rest: Vec<String> = args.collect();
     let result = match command.as_str() {
         "apply" => apply::main(rest),
+        "doctor" => health::doctor(rest),
+        "status" => health::status(rest),
         "uninstall" => uninstall::main(rest).map(|()| 0),
         "update" => update::main(rest),
         "backup" => backup::main(rest).map(|()| 0),

@@ -100,7 +100,7 @@ fn set_folder_color(theme: &Path, color: &str) -> Result<usize, String> {
 }
 
 /// COSMIC's own window controls, from the cosmic-icons package.
-fn cosmic_controls() -> Option<PathBuf> {
+pub fn cosmic_controls() -> Option<PathBuf> {
     let dirs = std::env::var("XDG_DATA_DIRS").unwrap_or_default();
     let dirs = if dirs.is_empty() {
         "/usr/local/share:/usr/share".to_string()
