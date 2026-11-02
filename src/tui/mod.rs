@@ -41,6 +41,12 @@ fn spawn(cfg: &Config, tx: mpsc::Sender<Msg>) -> Result<std::process::Child, Str
     let mut cmd = Command::new(exe);
     cmd.arg("apply")
         .args(cfg.step_args())
+        .args(
+            Some(cfg.save_as.as_str())
+                .filter(|n| !n.is_empty())
+                .into_iter()
+                .flat_map(|n| ["--save", n]),
+        )
         .envs(cfg.env())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

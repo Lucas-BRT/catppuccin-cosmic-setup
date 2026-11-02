@@ -221,8 +221,8 @@ pub fn parse(
 pub fn validate(o: &Opts) -> Result<(), String> {
     palette::check(&o.flavor, Some(&o.accent))?;
     if let Some(light) = &o.light_flavor {
-        let light_dark = palette::check(light, Some(&o.accent))?.is_dark();
-        if light_dark || !Palette::new(&o.flavor).is_some_and(|p| p.is_dark()) {
+        let light_is_dark = palette::check(light, Some(&o.accent))?.is_dark();
+        if light_is_dark || !Palette::new(&o.flavor).is_some_and(|p| p.is_dark()) {
             return Err("--light-flavor needs a light flavor (latte) with a dark --flavor".into());
         }
     }
@@ -320,7 +320,13 @@ fn save_state(o: &Opts) -> Result<(), String> {
 
 /// Downloads a GitHub repository at an exact commit into `dest`, unless it
 /// already holds that commit.
-fn fetch_pinned((slug, rev): (&str, &str), dest: &Path) -> Result<(), String> {
+/// Downloads and unpacks the pinned revision. `only` limits what is unpacked
+/// (tar patterns under the top folder); empty unpacks everything.
+fn fetch_pinned(
+    (slug, rev): (&str, &str),
+    dest: &Path,
+    only: &[&str],
+) -> Result<(), String> {
     let marker = dest.join(".pinned-rev");
     if fs::read_to_string(&marker).is_ok_and(|r| r.trim() == rev) {
         return Ok(());
@@ -337,6 +343,8 @@ fn fetch_pinned((slug, rev): (&str, &str), dest: &Path) -> Result<(), String> {
         .args(["-xz", "-C"])
         .arg(dest)
         .arg("--strip-components=1")
+        .arg("--wildcards")
+        .args(only)
         .stdin(curl.stdout.take().ok_or("curl: no output")?)
         .status()
         .map_err(|e| format!("tar: {e}"))?;
@@ -428,7 +436,8 @@ fn step_cosmic(o: &Opts) -> Result<(), String> {
             home.join(".local/share/catppuccin/themes/cosmic-settings"),
         )?;
         t.flavor = light.clone();
-        theme::install_theme(&t)?;
+        let installed = theme::install_theme(&t);
+        // Restore the mode even when the Latte install failed.
         if !o.no_apply {
             fs::create_dir_all(&mode_dir).map_err(|e| format!("{}: {e}", mode_dir.display()))?;
             for (key, value) in [("is_dark", was_dark), ("auto_switch", true)] {
@@ -436,6 +445,7 @@ fn step_cosmic(o: &Opts) -> Result<(), String> {
                     .map_err(|e| format!("{}: {e}", mode_dir.join(key).display()))?;
             }
         }
+        installed?;
         ui::ok(&format!(
             "Light mode: Catppuccin {light}; switches at sunrise and sunset"
         ));
@@ -464,6 +474,10 @@ fn step_terminal(o: &Opts) -> Result<(), String> {
     terminal::apply(&o.flavor, &terminal::default_config_dir()?)?;
     let p = Palette::new(&o.flavor).ok_or("unknown flavor")?;
     ui::ok(&format!("Terminal colors: Catppuccin {}", p.name()));
+    if let Some(light) = &o.light_flavor {
+        terminal::apply(light, &terminal::default_config_dir()?)?;
+        ui::ok(&format!("Terminal colors in light mode: Catppuccin {light}"));
+    }
     let installed = o
         .install_font
         .as_deref()
@@ -521,6 +535,10 @@ fn step_zed(o: &Opts) -> Result<(), String> {
         Palette::new(&o.flavor).ok_or("unknown flavor")?.name()
     );
     ui::ok(&format!("Editor theme: {name}"));
+    if let Some(light) = &o.light_flavor {
+        zed::apply_light(light, &zed::default_settings_path()?)?;
+        ui::ok(&format!("Editor theme in light mode: Catppuccin {light}"));
+    }
     ui::ok(&format!("Editor icons: {name}"));
     Ok(())
 }
@@ -548,9 +566,12 @@ fn step_gtk(o: &Opts) -> Result<(), String> {
             let link = home.join(format!(".config/{v}/gtk.css"));
             if fs::symlink_metadata(&link).is_err() {
                 fs::create_dir_all(link.parent().unwrap()).map_err(|e| e.to_string())?;
-                std::os::unix::fs::symlink(&sheet, &link)
-                    .map_err(|e| format!("{}: {e}", link.display()))?;
-                ui::ok(&format!("{v}/gtk.css now follows COSMIC's sheet"));
+                match std::os::unix::fs::symlink(&sheet, &link) {
+                    Ok(()) => ui::ok(&format!("{v}/gtk.css now follows COSMIC's sheet")),
+                    // COSMIC writes this link itself, right after the theme import.
+                    Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+                    Err(e) => return Err(format!("{}: {e}", link.display())),
+                }
             }
         }
     }
@@ -594,8 +615,13 @@ fn step_icons(o: &Opts) -> Result<(), String> {
         "Papirus icons (cat-{}-{} folders)",
         o.flavor, o.accent
     ));
-    fetch_pinned(PAPIRUS, &cache.join("papirus"))?;
-    fetch_pinned(CTP_FOLDERS, &cache.join("ctp-folders"))?;
+    // Only the two themes the step uses: the rest of the repo is most of its size.
+    fetch_pinned(
+        PAPIRUS,
+        &cache.join("papirus"),
+        &["*/Papirus", "*/Papirus-Dark"],
+    )?;
+    fetch_pinned(CTP_FOLDERS, &cache.join("ctp-folders"), &[])?;
     let theme = icons::apply(
         &o.flavor,
         &o.accent,

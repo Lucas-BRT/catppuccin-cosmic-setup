@@ -475,8 +475,11 @@ dependencies = [
 name = "ctp-cosmic"
 version = "0.6.0"
 dependencies = [
+ "adler2",
  "catppuccin",
  "cosmic-theme",
+ "crc32fast",
+ "flate2",
  "jsonc-parser",
  "png",
  "ratatui",

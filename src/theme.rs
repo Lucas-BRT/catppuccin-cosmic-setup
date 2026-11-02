@@ -480,12 +480,16 @@ impl InstallOpts {
             ..Options::default()
         };
         let dark = palette::check(&o.flavor, Some(&o.accent))?.is_dark();
-        let builder = self.config.join(format!(
-            "com.system76.CosmicTheme.{}.Builder/v2",
-            if dark { "Dark" } else { "Light" }
-        ));
+        let builder = |dark: bool| {
+            self.config.join(format!(
+                "com.system76.CosmicTheme.{}.Builder/v2",
+                if dark { "Dark" } else { "Light" }
+            ))
+        };
+        // The other mode's setting stands in until this mode has been themed.
+        let current = current_frost(&builder(dark)).or_else(|| current_frost(&builder(!dark)));
         let default_on = || FROST_DEFAULT.iter().map(|s| s.to_string()).collect();
-        (o.frosted, o.frost_on) = match (self.frosted.as_str(), current_frost(&builder)) {
+        (o.frosted, o.frost_on) = match (self.frosted.as_str(), current) {
             ("off", _) | ("auto", None) => (None, default_on()),
             ("auto", Some((strength, on))) => (Some(strength), on),
             (strength, _) => (

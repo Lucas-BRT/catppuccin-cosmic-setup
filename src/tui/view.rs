@@ -142,6 +142,18 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
         c.profiles[c.profile].clone(),
         c.profiles.len() > 1,
     ));
+    let typing = focused == Field::SaveAs;
+    lines.push(row(
+        Field::SaveAs,
+        "Save as",
+        match (c.save_as.is_empty(), typing) {
+            (true, true) => "▏".to_string(),
+            (true, false) => "—".to_string(),
+            (false, true) => format!("{}▏", c.save_as),
+            (false, false) => c.save_as.clone(),
+        },
+        !c.save_as.is_empty(),
+    ));
     lines.push(row(Field::Flavor, "Flavor", p.name(), true));
     let light_on = c.steps[0] && c.flavor_is_dark();
     lines.push(row(
@@ -184,7 +196,7 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
         ROUNDNESS[c.roundness].replace("slightly", "slightly "),
         c.steps[0],
     ));
-    let wall_on = c.steps[5];
+    let wall_on = c.steps[4];
     lines.push(row(
         Field::Wallpaper,
         "Wallpaper",
@@ -251,7 +263,7 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
             },
         ),
     ]));
-    debug_assert_eq!(fields().len(), 10 + STEPS.len());
+    debug_assert_eq!(fields().len(), 11 + STEPS.len());
     f.render_widget(Paragraph::new(lines), inner);
 
     // Right: live preview.

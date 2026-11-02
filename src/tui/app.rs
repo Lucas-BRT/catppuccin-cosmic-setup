@@ -48,6 +48,7 @@ pub const KEEP_FONT: &str = "keep current";
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Field {
     Profile,
+    SaveAs,
     Flavor,
     Light,
     Accent,
@@ -63,6 +64,7 @@ pub enum Field {
 pub fn fields() -> Vec<Field> {
     let mut f = vec![
         Field::Profile,
+        Field::SaveAs,
         Field::Flavor,
         Field::Light,
         Field::Accent,
@@ -86,6 +88,8 @@ pub struct Config {
     /// Index into `profiles`; choosing one loads its values.
     pub profile: usize,
     pub profiles: Vec<String>,
+    /// Name typed under "Save as": the choices are saved as a profile after a successful run.
+    pub save_as: String,
     pub accent: usize,
     pub frosted: usize,
     pub roundness: usize,
@@ -107,6 +111,7 @@ impl Default for Config {
             light: 0,
             profile: 0,
             profiles: vec![NO_PROFILE.to_string()],
+            save_as: String::new(),
             accent: accents.iter().position(|a| *a == "mauve").unwrap_or(0),
             frosted: 0,
             roundness: 0,
@@ -131,6 +136,7 @@ impl Config {
             light: usize::from(o.light_flavor.is_some()),
             profile: 0,
             profiles: vec![NO_PROFILE.to_string()],
+            save_as: String::new(),
             accent: find(&palette::accents(), &o.accent),
             frosted: find(&FROSTED, &o.frosted),
             roundness: find(&ROUNDNESS, &o.roundness),
@@ -255,11 +261,13 @@ impl Setup {
                 if c.profile > 0
                     && let Ok(o) = crate::profiles::load(&c.profiles[c.profile])
                 {
-                    let (profile, profiles) = (c.profile, c.profiles.clone());
+                    let (profile, profiles, save_as) =
+                        (c.profile, c.profiles.clone(), c.save_as.clone());
                     *c = Config::from_opts(&o, c.fonts[1..].to_vec());
-                    (c.profile, c.profiles) = (profile, profiles);
+                    (c.profile, c.profiles, c.save_as) = (profile, profiles, save_as);
                 }
             }
+            Field::SaveAs => {}
             Field::Flavor => cycle(&mut c.flavor, palette::flavors().len(), forward),
             Field::Light => cycle(&mut c.light, LIGHT.len(), forward),
             Field::Accent => cycle(&mut c.accent, palette::accents().len(), forward),
@@ -281,6 +289,22 @@ impl Setup {
     pub fn on_key(&mut self, key: KeyEvent) -> Action {
         self.message = None;
         let n = fields().len();
+        // On the name field, letters are text, not shortcuts.
+        if self.current() == Field::SaveAs && !key.modifiers.contains(KeyModifiers::CONTROL) {
+            match key.code {
+                KeyCode::Char(ch) => {
+                    if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
+                        self.cfg.save_as.push(ch);
+                    }
+                    return Action::None;
+                }
+                KeyCode::Backspace => {
+                    self.cfg.save_as.pop();
+                    return Action::None;
+                }
+                _ => {}
+            }
+        }
         match key.code {
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::Quit,
             KeyCode::Char('q') | KeyCode::Esc => Action::Quit,
@@ -301,7 +325,11 @@ impl Setup {
                 Action::None
             }
             KeyCode::Enter => {
-                if self.cfg.step_args().is_empty() {
+                let name = &self.cfg.save_as;
+                if !name.is_empty() && !crate::profiles::valid_name(name) {
+                    self.message = Some("Bad profile name (it cannot start with a dot)".into());
+                    Action::None
+                } else if self.cfg.step_args().is_empty() {
                     self.message = Some("Select at least one step".into());
                     Action::None
                 } else {
@@ -586,7 +614,7 @@ mod tests {
     #[test]
     fn progress_follows_install_output() {
         let cfg = Config {
-            steps: [true, true, false, false, false, true, false],
+            steps: [true, true, false, false, true, false, false],
             ..Config::default()
         };
         let mut p = Progress::new(&cfg, true);
@@ -615,5 +643,23 @@ mod tests {
         p.exited(1);
         assert_eq!(p.steps[0].status, Status::Failed);
         assert_eq!(p.steps[1].status, Status::Pending);
+    }
+
+    #[test]
+    fn typing_a_profile_name() {
+        let mut s = Setup::default();
+        goto(&mut s, Field::SaveAs);
+        let key = |c| KeyEvent::new(c, KeyModifiers::NONE);
+        // q, j and space are text here, not shortcuts.
+        for ch in ['q', 'j', ' ', 'a', '/'] {
+            assert_eq!(s.on_key(key(KeyCode::Char(ch))), Action::None);
+        }
+        assert_eq!(s.cfg.save_as, "qja");
+        s.on_key(key(KeyCode::Backspace));
+        assert_eq!(s.cfg.save_as, "qj");
+        assert_eq!(s.current(), Field::SaveAs);
+        s.cfg.save_as = ".bad".into();
+        assert_eq!(s.on_key(key(KeyCode::Enter)), Action::None);
+        assert!(s.message.is_some());
     }
 }

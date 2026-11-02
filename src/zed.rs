@@ -30,6 +30,16 @@ pub fn default_settings_path() -> Result<PathBuf, String> {
 
 /// Applies the theme and icon theme to `settings.json`.
 pub fn apply(flavor: &str, settings_path: &Path) -> Result<(), String> {
+    write(flavor, settings_path, true)
+}
+
+/// Sets only the theme of the flavor's mode, for the light flavor that
+/// COSMIC's light mode uses; the icon theme stays as `apply` left it.
+pub fn apply_light(flavor: &str, settings_path: &Path) -> Result<(), String> {
+    write(flavor, settings_path, false)
+}
+
+fn write(flavor: &str, settings_path: &Path, icons: bool) -> Result<(), String> {
     let p = Palette::new(flavor).ok_or_else(|| format!("unknown flavor '{flavor}'"))?;
     let display_name = format!("Catppuccin {}", p.name());
     let is_dark = p.is_dark();
@@ -57,10 +67,12 @@ pub fn apply(flavor: &str, settings_path: &Path) -> Result<(), String> {
     })?;
 
     // 1. icon_theme: "Catppuccin <Name>"
-    if let Some(prop) = root_obj.get("icon_theme") {
-        prop.set_value(json!(display_name.clone()));
-    } else {
-        root_obj.append("icon_theme", json!(display_name.clone()));
+    if icons {
+        if let Some(prop) = root_obj.get("icon_theme") {
+            prop.set_value(json!(display_name.clone()));
+        } else {
+            root_obj.append("icon_theme", json!(display_name.clone()));
+        }
     }
 
     // 2. theme: { "mode": "system", "light": ..., "dark": ... }
@@ -103,6 +115,15 @@ pub fn apply(flavor: &str, settings_path: &Path) -> Result<(), String> {
 
 /// Checks whether the theme and icon theme match the flavor in `settings.json`.
 pub fn check(flavor: &str, settings_path: &Path) -> Result<bool, String> {
+    check_with(flavor, settings_path, true)
+}
+
+/// Like `check`, for the light flavor: only the theme is judged.
+pub fn check_light(flavor: &str, settings_path: &Path) -> Result<bool, String> {
+    check_with(flavor, settings_path, false)
+}
+
+fn check_with(flavor: &str, settings_path: &Path, icons: bool) -> Result<bool, String> {
     let p = Palette::new(flavor).ok_or_else(|| format!("unknown flavor '{flavor}'"))?;
     let display_name = format!("Catppuccin {}", p.name());
     let is_dark = p.is_dark();
@@ -142,7 +163,7 @@ pub fn check(flavor: &str, settings_path: &Path) -> Result<bool, String> {
         false
     };
 
-    Ok(icon_ok && theme_ok)
+    Ok((icon_ok || !icons) && theme_ok)
 }
 
 pub fn main(args: Vec<String>) -> Result<(), String> {
@@ -294,5 +315,18 @@ mod tests {
         assert!(updated.contains(r#""dark": "Catppuccin Frappé""#));
         assert!(updated.contains(r#""icon_theme": "Catppuccin Frappé""#));
         assert!(check("frappe", tmp.path()).unwrap());
+    }
+
+    #[test]
+    fn light_flavor_sets_only_the_light_theme() {
+        let f = std::env::temp_dir().join(format!("ctp-zed-light-{}.json", std::process::id()));
+        std::fs::write(&f, "{}").unwrap();
+        apply("mocha", &f).unwrap();
+        apply_light("latte", &f).unwrap();
+        let t = std::fs::read_to_string(&f).unwrap();
+        assert!(t.contains(r#""light": "Catppuccin Latte""#));
+        assert!(t.contains(r#""icon_theme": "Catppuccin Mocha""#));
+        assert!(check("mocha", &f).unwrap() && check_light("latte", &f).unwrap());
+        std::fs::remove_file(&f).unwrap();
     }
 }

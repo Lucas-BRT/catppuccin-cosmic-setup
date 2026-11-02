@@ -183,20 +183,30 @@ pub fn check(o: &Opts, home: &Path) -> Vec<Line> {
                 }
                 line(ok, format!("desktop theme: {what}"))
             }
-            "terminal" => line(
-                terminal::check(&o.flavor, &cosmic.join("com.system76.CosmicTerm/v1"))
-                    .unwrap_or(false),
-                format!("terminal colors: {name}"),
-            ),
+            "terminal" => {
+                let dir = cosmic.join("com.system76.CosmicTerm/v1");
+                let light = o
+                    .light_flavor
+                    .as_deref()
+                    .is_none_or(|l| terminal::check(l, &dir).unwrap_or(false));
+                line(
+                    terminal::check(&o.flavor, &dir).unwrap_or(false) && light,
+                    format!("terminal colors: {name}"),
+                )
+            }
             "bash" => line(
                 prompt::installed(home, &o.accent, &p),
                 format!("bash prompt: {name}, {} accent", o.accent),
             ),
             "zed" => {
                 if which(home, &["zed", "zeditor"]) {
+                    let file = home.join(".config/zed/settings.json");
+                    let light = o
+                        .light_flavor
+                        .as_deref()
+                        .is_none_or(|l| zed::check_light(l, &file).unwrap_or(false));
                     line(
-                        zed::check(&o.flavor, &home.join(".config/zed/settings.json"))
-                            .unwrap_or(false),
+                        zed::check(&o.flavor, &file).unwrap_or(false) && light,
                         format!("zed theme and icons: {name}"),
                     )
                 } else {

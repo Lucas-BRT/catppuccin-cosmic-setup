@@ -12,6 +12,9 @@ name = "ctp-cosmic"
 path = "src/main.rs"
 
 [dependencies]
+adler2 = "2"
+crc32fast = "1"
+flate2 = "1"
 catppuccin = "2.8.0"
 jsonc-parser = { version = "0.26", features = ["cst"] }
 png = "0.18.1"

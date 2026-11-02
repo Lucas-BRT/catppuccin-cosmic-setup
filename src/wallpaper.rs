@@ -147,9 +147,28 @@ pub(crate) fn render_one(
     image::render(w, h, &pixel)
 }
 
+/// Renders a style to `path` unless that file already holds the same
+/// picture: the tag names the program version, style, flavor, accent and size.
+fn render_cached(
+    path: &Path,
+    style: &str,
+    flavor: &str,
+    accent: &str,
+    (w, h): (usize, usize),
+) -> Result<(), String> {
+    let tag = format!(
+        "{} {style} {flavor} {accent} {w}x{h}",
+        env!("CARGO_PKG_VERSION")
+    );
+    if image::has_tag(path, &tag) {
+        return Ok(());
+    }
+    let rgb = render_one(style, flavor, accent, (w, h));
+    image::write_png_tagged(path, w, h, &rgb, Some(&tag))
+}
+
 fn save(path: &Path, style: &str, a: &Args) -> Result<(), String> {
-    let rgb = render_one(style, &a.flavor, &a.accent, a.size);
-    image::write_png(path, a.size.0, a.size.1, &rgb)
+    render_cached(path, style, &a.flavor, &a.accent, a.size)
 }
 
 /// Grid of every style (rows) in every flavor (columns) on a Crust border.
@@ -193,8 +212,7 @@ fn run(a: &Args) -> Result<(), String> {
 
 /// One wallpaper at the default size.
 pub fn render_to(path: &Path, style: &str, flavor: &str, accent: &str) -> Result<(), String> {
-    let (w, h) = DEFAULT_SIZE;
-    image::write_png(path, w, h, &render_one(style, flavor, accent, (w, h)))
+    render_cached(path, style, flavor, accent, DEFAULT_SIZE)
 }
 
 /// Every style into `dir`, named catppuccin-<flavor>-<accent>-<style>.png.
@@ -209,7 +227,7 @@ pub fn render_all(
     // parallel too so their (single-threaded) PNG compression overlaps.
     styles::list().par_iter().try_for_each(|(style, _)| {
         let path = dir.join(format!("catppuccin-{flavor}-{accent}-{style}.png"));
-        image::write_png(&path, w, h, &render_one(style, flavor, accent, (w, h)))
+        render_cached(&path, style, flavor, accent, (w, h))
     })
 }
 

@@ -25,7 +25,7 @@ fn dir() -> Result<PathBuf, String> {
 }
 
 /// Letters, digits, `-`, `_` and `.`, not starting with a dot.
-fn valid_name(name: &str) -> bool {
+pub fn valid_name(name: &str) -> bool {
     !name.is_empty()
         && !name.starts_with('.')
         && name

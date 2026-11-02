@@ -144,30 +144,52 @@ pub fn apply(flavor: &str, accent: &str, p: &Paths) -> Result<String, String> {
     let color = format!("cat-{flavor}-{accent}");
 
     io(fs::create_dir_all(&p.icons), &p.icons)?;
-    for theme in ["Papirus", "Papirus-Dark"] {
-        let dest = p.icons.join(theme);
-        if fs::symlink_metadata(&dest).is_ok() {
-            io(fs::remove_dir_all(&dest), &dest)?;
+    // Copying ~50k files is the slow part. The copies only depend on the
+    // pinned sources, so a run with the same revisions keeps them and just
+    // re-points the folder links below.
+    let rev = |dir: &Path| fs::read_to_string(dir.join(".pinned-rev")).unwrap_or_default();
+    let source = format!("{}{}", rev(&p.papirus), rev(&p.folders));
+    let marker = p.icons.join("Papirus/.ctp-source");
+    let fresh = !source.trim().is_empty()
+        && fs::read_to_string(&marker).is_ok_and(|m| m == source)
+        && p.icons.join("Papirus-Dark").is_dir();
+    if !fresh {
+        for theme in ["Papirus", "Papirus-Dark"] {
+            let dest = p.icons.join(theme);
+            if fs::symlink_metadata(&dest).is_ok() {
+                io(fs::remove_dir_all(&dest), &dest)?;
+            }
+            copy_tree(&p.papirus.join(theme), &dest)?;
         }
-        copy_tree(&p.papirus.join(theme), &dest)?;
-    }
-    for entry in io(fs::read_dir(p.folders.join("src")), &p.folders)? {
-        let entry = io(entry, &p.folders)?;
-        copy_tree(
-            &entry.path(),
-            &p.icons.join("Papirus").join(entry.file_name()),
-        )?;
+        for entry in io(fs::read_dir(p.folders.join("src")), &p.folders)? {
+            let entry = io(entry, &p.folders)?;
+            copy_tree(
+                &entry.path(),
+                &p.icons.join("Papirus").join(entry.file_name()),
+            )?;
+        }
     }
     if set_folder_color(&p.icons.join(base), &color)? == 0 {
         return Err(format!("no '{color}' folders found in {base}"));
     }
-    for theme in ["Papirus", "Papirus-Dark"] {
-        // Only a cache for faster lookups: fine if the tool is missing.
-        let _ = Command::new("gtk-update-icon-cache")
-            .arg("-q")
-            .arg(p.icons.join(theme))
-            .stderr(Stdio::null())
-            .status();
+    if !fresh {
+        // Only a cache for faster lookups: fine if the tool is missing. The
+        // folder links keep their names, so a kept cache stays valid.
+        let children: Vec<_> = ["Papirus", "Papirus-Dark"]
+            .iter()
+            .filter_map(|theme| {
+                Command::new("gtk-update-icon-cache")
+                    .arg("-q")
+                    .arg(p.icons.join(theme))
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .ok()
+            })
+            .collect();
+        for mut c in children {
+            let _ = c.wait();
+        }
+        let _ = fs::write(&marker, &source);
     }
 
     let theme = match cosmic_controls() {

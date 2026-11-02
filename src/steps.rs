@@ -39,12 +39,6 @@ pub const STEPS: [Step; 7] = [
         paths: &[".config/zed/settings.json"],
     },
     Step {
-        name: "icons",
-        label: "Papirus icons (optional)",
-        optional: true,
-        paths: &[".config/cosmic/com.system76.CosmicTk/v1/icon_theme"],
-    },
-    Step {
         name: "wallpaper",
         label: "Wallpaper",
         optional: false,
@@ -58,6 +52,13 @@ pub const STEPS: [Step; 7] = [
         label: "GTK and Flatpak apps (optional)",
         optional: true,
         paths: &[".local/share/flatpak/overrides/"],
+    },
+    // Last: the slowest step.
+    Step {
+        name: "icons",
+        label: "Papirus icons (optional)",
+        optional: true,
+        paths: &[".config/cosmic/com.system76.CosmicTk/v1/icon_theme"],
     },
 ];
 

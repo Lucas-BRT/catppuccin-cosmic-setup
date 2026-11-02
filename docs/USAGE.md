@@ -106,9 +106,9 @@ icons step, uses the light Papirus icons).
 | `terminal` | adds the Catppuccin color scheme to COSMIC Terminal and selects it |
 | `bash` | installs the prompt and adds one marked block to `~/.bashrc` |
 | `zed` | applies Catppuccin theme and icons to Zed (`~/.config/zed/settings.json`) |
-| `icons` | **optional**, see [Icons](#icons-optional) |
 | `wallpaper` | renders a wallpaper and sets it as the background |
 | `gtk` | **optional**, see [GTK and Flatpak apps](#gtk-and-flatpak-apps-optional) |
+| `icons` | **optional**, runs last (it is the slowest), see [Icons](#icons-optional) |
 
 ### Terminal
 
