@@ -322,11 +322,7 @@ fn save_state(o: &Opts) -> Result<(), String> {
 /// already holds that commit.
 /// Downloads and unpacks the pinned revision. `only` limits what is unpacked
 /// (tar patterns under the top folder); empty unpacks everything.
-fn fetch_pinned(
-    (slug, rev): (&str, &str),
-    dest: &Path,
-    only: &[&str],
-) -> Result<(), String> {
+fn fetch_pinned((slug, rev): (&str, &str), dest: &Path, only: &[&str]) -> Result<(), String> {
     let marker = dest.join(".pinned-rev");
     if fs::read_to_string(&marker).is_ok_and(|r| r.trim() == rev) {
         return Ok(());
@@ -476,7 +472,9 @@ fn step_terminal(o: &Opts) -> Result<(), String> {
     ui::ok(&format!("Terminal colors: Catppuccin {}", p.name()));
     if let Some(light) = &o.light_flavor {
         terminal::apply(light, &terminal::default_config_dir()?)?;
-        ui::ok(&format!("Terminal colors in light mode: Catppuccin {light}"));
+        ui::ok(&format!(
+            "Terminal colors in light mode: Catppuccin {light}"
+        ));
     }
     let installed = o
         .install_font

@@ -81,3 +81,41 @@ mod tests {
         }
     }
 }
+
+/// A small deterministic generator (splitmix64) for the styles that take a
+/// seed. `salt` gives every style its own stream from the same seed.
+pub struct Rng(u64);
+
+impl Rng {
+    pub fn new(seed: u64, salt: u64) -> Self {
+        let mut r = Rng(seed ^ salt.wrapping_mul(0x9E37_79B9_7F4A_7C15));
+        r.next();
+        r
+    }
+    pub fn next(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+    /// In [0, 1).
+    pub fn f(&mut self) -> f64 {
+        (self.next() >> 11) as f64 / (1u64 << 53) as f64
+    }
+    pub fn uni(&mut self, a: f64, b: f64) -> f64 {
+        a + (b - a) * self.f()
+    }
+    /// In [a, b).
+    pub fn int(&mut self, a: i64, b: i64) -> i64 {
+        a + (self.next() % (b - a).max(1) as u64) as i64
+    }
+}
+
+/// `hash01` that also depends on a seed.
+pub fn hash_seed(i: i64, j: i64, seed: u64) -> f64 {
+    hash01(
+        i.wrapping_add((seed % 100_003) as i64 * 31),
+        j.wrapping_sub((seed >> 20) as i64 % 9973),
+    )
+}

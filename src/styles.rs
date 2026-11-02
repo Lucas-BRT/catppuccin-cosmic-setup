@@ -40,12 +40,19 @@ pub fn build(style: &str, p: Palette, accent: &str, w: usize, h: usize) -> Optio
         "sunset" => sunset(p, accent, wf, hf),
         "topography" => topography(p, accent, w, h),
         "mountains" => mountains(p, accent, w, wf, hf),
-        _ => return None,
+        "julia" => julia(p, accent, wf, hf),
+        "moire" => moire(p, accent, wf, hf),
+        "phyllotaxis" => phyllotaxis(p, accent, wf, hf),
+        "voronoi" => voronoi(p, accent, wf, hf),
+        _ => {
+            return crate::math_styles::build(style, p, accent, w, h)
+                .or_else(|| crate::seeded_styles::build(style, p, accent, w, h));
+        }
     })
 }
 
 /// Two companion colors that always differ from the accent.
-fn companions(accent: &str) -> (&'static str, &'static str) {
+pub(crate) fn companions(accent: &str) -> (&'static str, &'static str) {
     (
         if accent == "blue" { "lavender" } else { "blue" },
         if accent == "pink" { "mauve" } else { "pink" },
@@ -484,5 +491,150 @@ fn mountains(p: Palette, accent: &str, w: usize, wf: f64, h: f64) -> PixelFn {
             }
         }
         c
+    })
+}
+
+/// A Julia set: z → z² + c, colored by the smooth escape time.
+fn julia(p: Palette, accent: &str, w: f64, h: f64) -> PixelFn {
+    let (crust, mantle, base, acc) = (
+        p.get("crust"),
+        p.get("mantle"),
+        p.get("base"),
+        p.get(accent),
+    );
+    const MAX: u32 = 160;
+    let (cr, ci) = (-0.8, 0.156);
+    Box::new(move |x, y| {
+        let mut zr = (x as f64 - w / 2.0) / h * 3.0;
+        let mut zi = (y as f64 - h / 2.0) / h * 3.0;
+        for n in 0..MAX {
+            let (r2, i2) = (zr * zr, zi * zi);
+            if r2 + i2 > 256.0 {
+                // Smooth iteration count: no bands between escape times.
+                let mu = f64::from(n) + 1.0 - ((r2 + i2).ln() / 2.0).log2();
+                let t = clamp01(mu / 40.0).powf(0.45);
+                let c = mix(mantle, acc, t);
+                return mix(c, base, (1.0 - t) * 0.6);
+            }
+            zi = 2.0 * zr * zi + ci;
+            zr = r2 - i2 + cr;
+        }
+        crust
+    })
+}
+
+/// Two families of thin concentric rings; where they cross they beat into
+/// moiré. The rings have crisp, anti-aliased edges: a plain cosine would look
+/// blurred.
+fn moire(p: Palette, accent: &str, w: f64, h: f64) -> PixelFn {
+    let (mantle, base, surface1, acc) = (
+        p.get("mantle"),
+        p.get("base"),
+        p.get("overlay0"),
+        p.get(accent),
+    );
+    let period = h / 48.0;
+    let k = 2.0 * PI / period;
+    let aa = k * 0.75; // the cosine changes by at most k per pixel
+    // Ring mask: 1 on the ring's crest, 0 elsewhere, edge about 1 px wide.
+    let ring = move |d: f64| clamp01(((d * k).cos() - 0.55) / aa * 0.5 + 0.5);
+    let (a, b) = ((w * 0.38, h * 0.5), (w * 0.62, h * 0.5));
+    Box::new(move |x, y| {
+        let (xf, yf) = (x as f64, y as f64);
+        let (r1, r2) = (
+            ring((xf - a.0).hypot(yf - a.1)),
+            ring((xf - b.0).hypot(yf - b.1)),
+        );
+        // Fade toward the edges so the rings do not run into the border.
+        let v = clamp01(1.4 - ((xf / w - 0.5).powi(2) + (yf / h - 0.5).powi(2)).sqrt() * 1.6);
+        let c = mix(mantle, base, yf / h);
+        // One family in a surface tone, the other in the accent, mixed
+        // where they cross.
+        let c = mix(c, surface1, r1 * 0.75);
+        mix(c, acc, r2 * (0.35 + 0.65 * v))
+    })
+}
+
+/// Sunflower seeds: seed n sits at radius c√n and n·137.5° (the golden angle).
+fn phyllotaxis(p: Palette, accent: &str, w: f64, h: f64) -> PixelFn {
+    let (mantle, base, surface1, acc) = (
+        p.get("mantle"),
+        p.get("base"),
+        p.get("surface1"),
+        p.get(accent),
+    );
+    let c = h / 80.0;
+    let reach = w.hypot(h) / 2.0;
+    let count = ((reach / c).powi(2)) as usize;
+    let golden = PI * (3.0 - 5f64.sqrt());
+    let cell = c * 4.0; // larger than any seed, so a 3×3 look-up finds them all
+    let (cols, rows) = ((w / cell) as usize + 1, (h / cell) as usize + 1);
+    let mut grid: Vec<Vec<(f64, f64, f64)>> = vec![Vec::new(); cols * rows];
+    for n in 0..count {
+        let (r, a) = (c * (n as f64).sqrt(), n as f64 * golden);
+        let (sx, sy) = (w / 2.0 + r * a.cos(), h / 2.0 + r * a.sin());
+        if (0.0..w).contains(&sx) && (0.0..h).contains(&sy) {
+            let t = r / reach;
+            grid[(sy / cell) as usize * cols + (sx / cell) as usize].push((sx, sy, t));
+        }
+    }
+    Box::new(move |x, y| {
+        let (xf, yf) = (x as f64, y as f64);
+        let mut col = mix(mantle, base, yf / h);
+        let (ci, cj) = ((x as f64 / cell) as i64, (y as f64 / cell) as i64);
+        for j in (cj - 1).max(0)..=(cj + 1).min(rows as i64 - 1) {
+            for i in (ci - 1).max(0)..=(ci + 1).min(cols as i64 - 1) {
+                for &(sx, sy, t) in &grid[j as usize * cols + i as usize] {
+                    let rad = c * (0.2 + 0.3 * t);
+                    let cover = clamp01(rad - (xf - sx).hypot(yf - sy) + 0.5);
+                    if cover > 0.0 {
+                        col = mix(col, mix(surface1, acc, t.powf(1.3)), cover);
+                    }
+                }
+            }
+        }
+        col
+    })
+}
+
+/// Voronoi cells around jittered points, with the borders drawn.
+fn voronoi(p: Palette, accent: &str, w: f64, h: f64) -> PixelFn {
+    let (crust, mantle, surface0, acc) = (
+        p.get("crust"),
+        p.get("mantle"),
+        p.get("surface0"),
+        p.get(accent),
+    );
+    let s = h / 6.0;
+    let lw = (h / 700.0).max(1.0);
+    let seed = move |i: i64, j: i64| {
+        (
+            (i as f64 + 0.15 + 0.7 * hash01(i, j)) * s,
+            (j as f64 + 0.15 + 0.7 * hash01(j + 40_000, i)) * s,
+        )
+    };
+    Box::new(move |x, y| {
+        let (xf, yf) = (x as f64, y as f64);
+        let (ci, cj) = ((xf / s).floor() as i64, (yf / s).floor() as i64);
+        let (mut d1, mut d2, mut near) = (f64::MAX, f64::MAX, (0, 0));
+        for j in cj - 1..=cj + 1 {
+            for i in ci - 1..=ci + 1 {
+                let (px, py) = seed(i, j);
+                let d = (xf - px).hypot(yf - py);
+                if d < d1 {
+                    (d2, d1, near) = (d1, d, (i, j));
+                } else if d < d2 {
+                    d2 = d;
+                }
+            }
+        }
+        let v = hash01(near.0 * 3 + 1, near.1 * 5 + 2);
+        // Accent tint toward the bottom-right corner.
+        let (px, py) = seed(near.0, near.1);
+        let g = clamp01(px / w * 0.6 + py / h * 0.6 - 0.2);
+        let fill = mix(mix(crust, mantle, v), surface0, v * 0.5);
+        let c = mix(fill, acc, g * g * 0.4);
+        // (d2 - d1) / 2 is roughly the distance to the border.
+        mix(c, acc, clamp01(lw - (d2 - d1) * 0.5 + 0.5))
     })
 }

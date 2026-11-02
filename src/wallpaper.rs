@@ -28,8 +28,7 @@ Usage:
   ctp-cosmic wallpaper --describe-styles      style names with a description
 
 Options:
-  --style NAME     glow (default), waves, stripes, dots, triangles, mesh,
-                   aurora, sunset, topography, mountains
+  --style NAME     glow (default) or any other style; see --list-styles
   --flavor NAME    latte, frappe, macchiato, mocha (default: mocha)
   --accent NAME    any of the 14 accents (default: mauve)
   --size WxH       image size (default: 2560x1440)
@@ -147,6 +146,29 @@ pub(crate) fn render_one(
     image::render(w, h, &pixel)
 }
 
+/// Names the code that draws the pictures: the version plus a hash of its
+/// sources, so a changed style is never mistaken for an up-to-date file.
+fn generator_id() -> &'static str {
+    static ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    ID.get_or_init(|| {
+        // FNV-1a.
+        let hash = [
+            include_str!("styles.rs"),
+            include_str!("math_styles.rs"),
+            include_str!("seeded_styles.rs"),
+            include_str!("noise.rs"),
+            include_str!("image.rs"),
+            include_str!("../styles.txt"),
+        ]
+        .iter()
+        .flat_map(|src| src.bytes())
+        .fold(0xcbf2_9ce4_8422_2325u64, |h, b| {
+            (h ^ u64::from(b)).wrapping_mul(0x100_0000_01b3)
+        });
+        format!("{}-{hash:016x}", env!("CARGO_PKG_VERSION"))
+    })
+}
+
 /// Renders a style to `path` unless that file already holds the same
 /// picture: the tag names the program version, style, flavor, accent and size.
 fn render_cached(
@@ -156,10 +178,7 @@ fn render_cached(
     accent: &str,
     (w, h): (usize, usize),
 ) -> Result<(), String> {
-    let tag = format!(
-        "{} {style} {flavor} {accent} {w}x{h}",
-        env!("CARGO_PKG_VERSION")
-    );
+    let tag = format!("{} {style} {flavor} {accent} {w}x{h}", generator_id());
     if image::has_tag(path, &tag) {
         return Ok(());
     }

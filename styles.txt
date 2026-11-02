@@ -10,3 +10,43 @@ aurora	curtains of light in the accent and Teal over a night sky
 sunset	a retro sun cut by stripes over a perspective grid
 topography	contour lines like a topographic map, in the accent
 mountains	layered mountain ridges under a moon
+julia	a Julia set, z → z² + c, glowing in the accent
+moire	two families of concentric rings beating into moiré
+phyllotaxis	sunflower seeds placed at the golden angle
+voronoi	cells around jittered points with their borders
+mandelbrot	the Mandelbrot set near the seahorse valley, banded by escape time
+burningship	the Burning Ship fractal, z → (|Re z| + i|Im z|)² + c
+newton	Newton's method on z³ = 1: three basins, one color each
+quasicrystal	seven plane waves added up into a pattern with no period
+plasma	the classic sum-of-sines plasma
+spiral	a five-armed logarithmic spiral
+hexgrid	a honeycomb of hexagons
+truchet	Truchet tiles: random quarter circles that join into paths
+sierpinski	Sierpinski's triangle from the bitwise AND of the coordinates
+xorfractal	the XOR texture, i ⊕ j, in blocks
+opart	a checkerboard bent by sine waves
+gyroid	a slice through the gyroid surface
+marble	veins of marble from a sine warped by fractal noise
+ripples	waves from five point sources
+grating	two line gratings a few degrees apart
+inversion	a square grid seen through circle inversion
+domain	domain coloring of a complex rational function
+automaton	rule 30 cellular automaton, one cell growing downward
+spirograph	hypotrochoids, the curves of a spirograph
+lissajous	nine Lissajous curves with the phase stepping
+clifford	the Clifford strange attractor as a density plot
+dejong	a Peter de Jong strange attractor
+flame	a flame fractal: random affine maps with non-linear variations
+flowlines	strands of light following the angle of a noise field
+warp	domain-warped noise: fbm bent by fbm, bent by fbm
+roses	rose curves (rhodonea) stacked and rotated
+hilbert	a Hilbert curve colored along its length
+identicon	a mirrored block pattern, like an identicon
+halftone	a noise field printed as rotated halftone dots
+superformula	nested Gielis superformula outlines
+mandala	rings of petals around the center
+kaleidoscope	noise folded into mirrored sectors, in flat levels
+lowpoly	jittered triangles, each shaded by a noise field
+circlepack	circles packed to fill the picture
+lsystem	an L-system drawn by a turtle: a plant, a Koch curve or a dragon
+grayscott	reaction-diffusion Turing patterns with crisp edges
