@@ -60,28 +60,6 @@ pub fn dither(x: usize, y: usize) -> f64 {
     n as f64 - 3.5
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Reference values from the original Python generator, which produced
-    // the same pixels; they pin the noise so images never change by accident.
-    #[test]
-    fn noise_matches_reference() {
-        assert_eq!(hash01(0, 0), 0.0);
-        assert_eq!(hash01(12345, -678), 0.783_138_780_804_150_4);
-        assert_eq!(vnoise(3.7, 1.2, 5), 0.621_361_161_882_963_2);
-        assert_eq!(fbm(0.3, 0.9, 4, 5), 0.538_798_053_950_044_8);
-    }
-
-    #[test]
-    fn dither_stays_small() {
-        for (x, y) in [(0, 0), (1, 0), (7, 13), (2559, 1439)] {
-            assert!((-3.5..=3.5).contains(&dither(x, y)));
-        }
-    }
-}
-
 /// A small deterministic generator (splitmix64) for the styles that take a
 /// seed. `salt` gives every style its own stream from the same seed.
 pub struct Rng(u64);
@@ -118,4 +96,26 @@ pub fn hash_seed(i: i64, j: i64, seed: u64) -> f64 {
         i.wrapping_add((seed % 100_003) as i64 * 31),
         j.wrapping_sub((seed >> 20) as i64 % 9973),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Reference values from the original Python generator, which produced
+    // the same pixels; they pin the noise so images never change by accident.
+    #[test]
+    fn noise_matches_reference() {
+        assert_eq!(hash01(0, 0), 0.0);
+        assert_eq!(hash01(12345, -678), 0.783_138_780_804_150_4);
+        assert_eq!(vnoise(3.7, 1.2, 5), 0.621_361_161_882_963_2);
+        assert_eq!(fbm(0.3, 0.9, 4, 5), 0.538_798_053_950_044_8);
+    }
+
+    #[test]
+    fn dither_stays_small() {
+        for (x, y) in [(0, 0), (1, 0), (7, 13), (2559, 1439)] {
+            assert!((-3.5..=3.5).contains(&dither(x, y)));
+        }
+    }
 }
