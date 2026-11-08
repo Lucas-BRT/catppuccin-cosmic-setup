@@ -22,6 +22,7 @@ ratatui = "0.30.2"
 rayon = "1.12.0"
 ron = "0.8"
 serde = { version = "1", features = ["derive"] }
+toml = "1.2.1"
 
 [dev-dependencies]
 # Only for tests: the generated themes are parsed with COSMIC's own

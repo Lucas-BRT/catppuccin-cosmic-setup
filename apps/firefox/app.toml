@@ -1,0 +1,29 @@
+# Firefox: the browser's own interface and its built-in pages (new tab,
+# about:preferences). Websites are not themed: that takes an extension.
+#
+# Goes in the profile Firefox marks as default (see `locate`), so Firefox must
+# have been started once. Needs no root and installs no add-on.
+name = "firefox"
+label = "Firefox"
+detect = ["firefox"]
+detect_paths = ["~/.var/app/org.mozilla.firefox", "~/snap/firefox"]
+locate = "firefox"
+
+[[file]]
+target = "chrome/userChrome.css"
+template = "userChrome.css"
+mode = "block"
+comment = "/* */"
+
+[[file]]
+target = "chrome/userContent.css"
+template = "userContent.css"
+mode = "block"
+comment = "/* */"
+
+# Firefox ignores userChrome.css unless this preference is on.
+[[file]]
+target = "user.js"
+template = "user.js"
+mode = "block"
+comment = "//"

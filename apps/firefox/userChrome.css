@@ -1,0 +1,53 @@
+/* Variable names are the ones Firefox's own interface uses (checked against
+   Firefox 159); !important also wins over a theme add-on's colors. */
+:root {
+  color-scheme: @scheme@ !important;
+
+  /* Window frame and toolbars */
+  --toolbox-background-color: @mantle@ !important;
+  --toolbox-background-color-inactive: @mantle@ !important;
+  --toolbox-text-color: @text@ !important;
+  --toolbox-text-color-inactive: @subtext0@ !important;
+  --toolbar-background-color: @base@ !important;
+  --toolbar-text-color: @text@ !important;
+  --toolbar-color: @text@ !important;
+  --toolbarbutton-icon-fill: @text@ !important;
+  --lwt-text-color: @text@ !important;
+  --lwt-accent-color: @mantle@ !important;
+
+  /* Address bar */
+  --toolbar-field-background-color: @surface0@ !important;
+  --toolbar-field-background-color-focus: @surface0@ !important;
+  --toolbar-field-text-color: @text@ !important;
+  --toolbar-field-text-color-focus: @text@ !important;
+  --toolbar-field-border-color-focus: @accent@ !important;
+  --urlbar-box-background-color: @surface0@ !important;
+  --urlbar-box-background-color-hover: @surface1@ !important;
+  --urlbar-box-background-color-focus: @surface0@ !important;
+  --urlbar-box-background-color-active: @surface0@ !important;
+  --urlbar-box-text-color: @text@ !important;
+  --urlbar-box-text-color-hover: @text@ !important;
+  --urlbar-box-text-color-focus: @text@ !important;
+  --urlbar-box-text-color-active: @text@ !important;
+
+  /* Tabs */
+  --tab-text-color: @subtext1@ !important;
+  --tab-text-color-selected: @text@ !important;
+  --tab-background-color-selected: @surface0@ !important;
+  --tab-background-color-hover: @surface0@ !important;
+  --tab-line-selected-color: @accent@ !important;
+
+  /* Menus, panels and the sidebar (including vertical tabs) */
+  --text-color: @text@ !important;
+  --link-color: @accent@ !important;
+  --panel-background-color: @mantle@ !important;
+  --panel-border-color: @surface1@ !important;
+  --sidebar-background-color: @mantle@ !important;
+  --sidebar-bg-color: @mantle@ !important;
+  --sidebar-narrow-bg-color: @mantle@ !important;
+  --sidebar-toolbar-bg-color: @mantle@ !important;
+  --sidebar-text-color: @text@ !important;
+  --sidebar-border-color: @surface1@ !important;
+  --chrome-content-separator-color: @surface1@ !important;
+  --focus-outline-color: @accent@ !important;
+}
