@@ -5,6 +5,7 @@
 //! procedural wallpapers. Colors come from the official `catppuccin` crate.
 
 mod apply;
+mod apps;
 mod background;
 mod backup;
 mod completions;
@@ -80,6 +81,7 @@ fn main() -> ExitCode {
         "prompt" => prompt::main(rest).map(|()| 0),
         "terminal" => terminal::main(rest),
         "zed" => zed::main(rest).map(|()| 0),
+        "app" => apps::main(rest),
         "tui" => tui::main(rest),
         "-V" | "--version" => {
             println!("ctp-cosmic {}", env!("CARGO_PKG_VERSION"));

@@ -227,20 +227,24 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
             .fg(t.c("subtext1"))
             .add_modifier(Modifier::BOLD),
     ));
-    for (i, step) in STEPS.iter().enumerate() {
-        let on = focused == Field::Step(i);
-        let check = if c.steps[i] { "◉" } else { "○" };
+    let step_rows = STEPS
+        .iter()
+        .enumerate()
+        .map(|(i, step)| (Field::Step(i), c.steps[i], step.label.to_string()));
+    let app_rows = crate::apps::catalog()
+        .iter()
+        .enumerate()
+        .map(|(i, (_, label))| (Field::App(i), c.apps[i], format!("{label} (optional)")));
+    for (field, checked, label) in step_rows.chain(app_rows) {
+        let on = focused == field;
+        let check = if checked { "◉" } else { "○" };
         let mut line = Line::from(vec![
             Span::styled(if on { "› " } else { "  " }, Style::new().fg(t.accent())),
             Span::styled(
                 format!("{check} "),
-                Style::new().fg(if c.steps[i] {
-                    t.accent()
-                } else {
-                    t.c("overlay0")
-                }),
+                Style::new().fg(if checked { t.accent() } else { t.c("overlay0") }),
             ),
-            Span::styled(step.label.to_string(), Style::new().fg(t.c("text"))),
+            Span::styled(label, Style::new().fg(t.c("text"))),
         ]);
         if on {
             line = line.style(Style::new().bg(t.c("surface0")));
@@ -263,7 +267,10 @@ pub fn draw_setup(f: &mut Frame, s: &Setup, preview: &mut dyn FnMut(usize, usize
             },
         ),
     ]));
-    debug_assert_eq!(fields().len(), 11 + STEPS.len());
+    debug_assert_eq!(
+        fields().len(),
+        11 + STEPS.len() + crate::apps::catalog().len()
+    );
     f.render_widget(Paragraph::new(lines), inner);
 
     // Right: live preview.
@@ -487,6 +494,7 @@ mod tests {
             "Install",
             "Preview",
             "Papirus icons",
+            "Firefox",
         ] {
             assert!(out.contains(want), "missing {want}");
         }

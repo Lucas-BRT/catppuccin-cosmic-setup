@@ -185,16 +185,25 @@ fn restore_in(
 }
 
 /// Backs up the watched files into `dir`.
-pub fn create(dir: &Path) -> Result<usize, String> {
-    create_in(&home()?, dir, &WATCHED)
+pub fn create(dir: &Path, extra: &[String]) -> Result<usize, String> {
+    create_in(&home()?, dir, &watched(extra))
+}
+
+/// The usual paths plus `extra` (what the chosen apps may write).
+fn watched(extra: &[String]) -> Vec<&str> {
+    WATCHED
+        .iter()
+        .copied()
+        .chain(extra.iter().map(String::as_str))
+        .collect()
 }
 
 /// Records what changed since `create`. When something did, `dir` becomes the
 /// last backup, the one `restore` undoes; a run that changed nothing (the same
 /// choices applied again) leaves the previous one in place and `dir` is removed.
-pub fn seal(dir: &Path) -> Result<usize, String> {
+pub fn seal(dir: &Path, extra: &[String]) -> Result<usize, String> {
     let home = home()?;
-    let n = seal_in(&home, dir, &WATCHED)?.len();
+    let n = seal_in(&home, dir, &watched(extra))?.len();
     if n == 0 {
         io(fs::remove_dir_all(dir), dir)?;
         return Ok(0);
@@ -265,11 +274,11 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     match args[..] {
         ["create", dir] => {
-            let n = create(Path::new(dir))?;
+            let n = create(Path::new(dir), &[])?;
             println!("{n} files backed up to {dir}");
         }
         ["seal", dir] => {
-            let n = seal(Path::new(dir))?;
+            let n = seal(Path::new(dir), &[])?;
             println!("{n} files changed");
         }
         ["restore", ref rest @ ..] => {

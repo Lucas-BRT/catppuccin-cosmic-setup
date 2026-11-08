@@ -57,6 +57,8 @@ Every release binary carries a signed provenance attestation:
 - **COSMIC Terminal** color scheme
 - **Bash prompt** with git branch, in the flavor's colors (bash only: zsh and
   fish are not configured)
+- **Apps**, only if you name them: Firefox, and any app you describe in a
+  small manifest ([docs/APPS.md](docs/APPS.md))
 - **Papirus icons** with Catppuccin folders, only if you ask for them
   (COSMIC's own icons stay by default; see [docs/USAGE.md](docs/USAGE.md#icons-optional))
 - **Wallpapers** in 50 styles, also available in COSMIC's wallpaper picker
