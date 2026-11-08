@@ -46,21 +46,24 @@ impl Palette {
         self.flavor.iter().find(|c| c.identifier() == name)
     }
 
-    /// A color by identifier ("mauve", "base", ...). Panics on unknown names,
-    /// which are always literals in this crate or validated user input.
-    pub fn get(&self, name: &str) -> Rgb {
-        let c = self
-            .color(name)
-            .unwrap_or_else(|| panic!("unknown Catppuccin color: {name}"));
-        [f64::from(c.rgb.r), f64::from(c.rgb.g), f64::from(c.rgb.b)]
+    /// A color by identifier ("mauve", "base", ...), or None if unknown.
+    pub fn try_get(&self, name: &str) -> Option<Rgb> {
+        self.color(name)
+            .map(|c| [f64::from(c.rgb.r), f64::from(c.rgb.g), f64::from(c.rgb.b)])
     }
 
-    /// A color as six lowercase hex digits ("cba6f7").
+    /// Like `try_get`, for the literal names used inside this crate. A typo
+    /// there is a programming error: the tests render every style and theme
+    /// in every flavor, so it fails `cargo test`, never a user's run.
+    pub fn get(&self, name: &str) -> Rgb {
+        self.try_get(name)
+            .unwrap_or_else(|| panic!("unknown Catppuccin color: {name}"))
+    }
+
+    /// A color as six lowercase hex digits ("cba6f7"); same rule as `get`.
     pub fn hex(&self, name: &str) -> String {
-        let c = self
-            .color(name)
-            .unwrap_or_else(|| panic!("unknown Catppuccin color: {name}"));
-        format!("{:02x}{:02x}{:02x}", c.rgb.r, c.rgb.g, c.rgb.b)
+        let [r, g, b] = self.get(name);
+        format!("{:02x}{:02x}{:02x}", r as u8, g as u8, b as u8)
     }
 }
 

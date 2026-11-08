@@ -879,6 +879,7 @@ pub fn main(mut args: Vec<String>) -> Result<u8, String> {
     if !parsed.explicit && env("NO_TUI").as_deref() != Some("1") && interactive() {
         return crate::tui::main(Vec::new());
     }
+    let _lock = crate::safety::lock()?;
     run(&parsed.opts, parsed.partial)?;
     if let Some(name) = save {
         crate::profiles::save(&name, &parsed.opts)?;

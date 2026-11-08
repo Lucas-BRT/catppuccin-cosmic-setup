@@ -30,15 +30,33 @@ later to change flavor, accent or steps, `ctp-cosmic update` to get a newer
 release.
 
 Your settings are backed up first, and `ctp-cosmic uninstall` puts back
-exactly what the install changed.
-Options and wallpaper styles are in
+exactly what the install changed. Add `--dry-run` to `apply` to see what it
+would do first. Options and wallpaper styles are in
 [docs/USAGE.md](docs/USAGE.md).
+
+### Installing a pinned version
+
+`curl | bash` runs whatever the release holds, so for a reviewed install pin
+the version and the binary's hash (it is in the release's `SHA256SUMS`):
+
+```bash
+V=v0.7.0
+curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/download/$V/install.sh -o install.sh
+less install.sh   # read it
+CATPPUCCIN_SETUP_VERSION=$V CATPPUCCIN_SETUP_SHA256=<hash of the binary for your arch> bash install.sh
+```
+
+Every release binary carries a signed provenance attestation:
+`gh attestation verify FILE --repo Lucas-BRT/catppuccin-cosmic-setup`
+(`install.sh` runs it by itself when `gh` is installed;
+`CATPPUCCIN_SETUP_VERIFY=1` makes a failure fatal).
 
 ## What it sets up
 
 - **Desktop theme** with Frosted Glass support
 - **COSMIC Terminal** color scheme
-- **Bash prompt** with git branch, in the flavor's colors
+- **Bash prompt** with git branch, in the flavor's colors (bash only: zsh and
+  fish are not configured)
 - **Papirus icons** with Catppuccin folders, only if you ask for them
   (COSMIC's own icons stay by default; see [docs/USAGE.md](docs/USAGE.md#icons-optional))
 - **Wallpapers** in 50 styles, also available in COSMIC's wallpaper picker

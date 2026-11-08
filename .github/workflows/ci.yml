@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "17 5 * * 1"   # weekly: new advisories can appear without a commit
 
 permissions:
   contents: read
@@ -35,10 +37,34 @@ jobs:
             }
           done
 
+  advisories:
+    name: Dependency advisories
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      # Built from crates.io instead of using cargo-deny-action, which downloads
+      # its binary from GitHub release assets while building its image and
+      # fails whenever that download does.
+      - run: cargo install cargo-deny --version 0.20.2 --locked
+      # --exclude-dev: cosmic-theme is a test-only dependency (it parses the
+      # generated themes) and is not in the shipped binary.
+      - run: cargo deny --exclude-dev check advisories
+
+  install-tests:
+    name: Installer tests (bats)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - run: cargo build --release --locked
+      - run: sudo apt-get update && sudo apt-get install -y bats
+      - run: bats --print-output-on-failure tests
+
   scripts:
     name: Installer scripts
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: ShellCheck
-        run: shellcheck -x install.sh
+        run: shellcheck -x install.sh scripts/dev/*.sh

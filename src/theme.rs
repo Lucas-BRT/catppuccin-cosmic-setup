@@ -667,6 +667,19 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn every_mapped_color_exists_in_every_flavor() {
+        for flavor in palette::flavors() {
+            let p = Palette::new(flavor).unwrap();
+            for (field, color) in PALETTE_MAP {
+                assert!(p.try_get(color).is_some(), "{flavor}: {field} -> {color}");
+            }
+            for accent in palette::accents() {
+                assert!(p.try_get(accent).is_some(), "{flavor}: accent {accent}");
+            }
+        }
+    }
+
     use super::*;
     use cosmic_theme::ThemeBuilder;
 

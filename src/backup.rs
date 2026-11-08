@@ -60,7 +60,7 @@ fn io<T>(r: std::io::Result<T>, path: &Path) -> Result<T, String> {
     r.map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// Every regular file under the watched paths, relative to `root`.
+/// Every regular file (or symlink to one) under the watched paths, relative to `root`.
 fn files(root: &Path, watched: &[&str]) -> Result<Vec<PathBuf>, String> {
     fn walk(root: &Path, rel: PathBuf, out: &mut Vec<PathBuf>) -> Result<(), String> {
         let path = root.join(&rel);
@@ -72,7 +72,11 @@ fn files(root: &Path, watched: &[&str]) -> Result<Vec<PathBuf>, String> {
                 let entry = io(entry, &path)?;
                 walk(root, rel.join(entry.file_name()), out)?;
             }
-        } else if meta.is_file() {
+        } else if meta.is_file()
+            // A symlink to a file (a ~/.bashrc kept by a dotfile manager) counts:
+            // it is read and written through the link, which stays a link.
+            || (meta.file_type().is_symlink() && fs::metadata(&path).is_ok_and(|m| m.is_file()))
+        {
             out.push(rel);
         }
         Ok(())
@@ -333,6 +337,29 @@ mod tests {
         fs::write(home.join("cfg/c"), "c1").unwrap();
         let lines = seal_in(home, dir, &W).unwrap();
         assert_eq!(lines, ["M cfg/a", "A cfg/c", "D rc"]);
+    }
+
+    #[test]
+    fn a_symlinked_file_is_backed_up_and_restored_through_the_link() {
+        let (home, dir) = setup("symlink");
+        let real = home.parent().unwrap().join("dots-rc");
+        fs::write(&real, "rc0").unwrap();
+        fs::remove_file(home.join("rc")).unwrap();
+        std::os::unix::fs::symlink(&real, home.join("rc")).unwrap();
+
+        create_in(&home, &dir, &W).unwrap();
+        fs::write(&real, "rc1").unwrap(); // what the installer writes through the link
+        assert_eq!(seal_in(&home, &dir, &W).unwrap(), ["M rc"]);
+
+        restore_in(&home, &dir, false, None).unwrap();
+        assert_eq!(fs::read_to_string(&real).unwrap(), "rc0");
+        assert!(
+            fs::symlink_metadata(home.join("rc"))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        fs::remove_dir_all(home.parent().unwrap()).unwrap();
     }
 
     #[test]

@@ -1,0 +1,69 @@
+# Changelog
+
+Format: [Keep a Changelog](https://keepachangelog.com). Releases after v0.7.0
+also get notes generated from their commits on the releases page.
+
+## [Unreleased]
+
+### Added
+- `install.sh` accepts `CATPPUCCIN_SETUP_SHA256` to pin the binary's hash and
+  checks the release's signed provenance attestation when `gh` is installed
+  (`CATPPUCCIN_SETUP_VERIFY=1` makes it mandatory). It refuses to run as root,
+  retries downloads and honors `NO_COLOR`.
+- `apply` and `uninstall` refuse to run as root and run one at a time.
+- Installer tests (bats), dependency advisory checks and Dependabot in CI, a
+  weekly check of the pinned Papirus commits, and signed provenance
+  attestations plus generated notes for releases.
+
+### Changed
+- A Papirus you installed yourself is moved to `Papirus.user-backup` instead of
+  being deleted, and `uninstall` puts it back; only themes this tool installed
+  are removed.
+- The prompt block is written to `~/.bashrc` atomically.
+- A release is built only if its tests pass.
+
+### Fixed
+- A `~/.bashrc` that is a symlink (dotfile managers) was not backed up, and
+  `uninstall` stopped at "no backup found" before removing the prompt block.
+
+## [0.7.0]
+- 36 math wallpaper styles (50 in total).
+- Light mode fixes, the profile name in the TUI, faster icons and wallpapers.
+
+## [0.6.0]
+- The gtk step: GTK and Flatpak apps.
+- `uninstall --only fonts` and icon files; `status --fix` reapplies only what
+  drifted; shell completions install; TUI profile picker and downloadable
+  Nerd Fonts.
+
+## [0.5.0]
+- Named profiles, `doctor`, `status` and `apply --dry-run`.
+- A Nerd Font for the terminal, shell completions, recolor your own wallpaper,
+  dark and Latte pairing for COSMIC's automatic mode switching.
+- Prune old backups; uninstall one step at a time.
+
+## [0.4.0]
+- `ctp-cosmic` is the whole installer: `apply`, `update` and `uninstall`.
+- Undo only what the installer changed.
+
+## [0.3.1]
+- Keep COSMIC's window buttons and the user's interface density.
+
+## [0.3.0]
+- Interactive setup (ratatui).
+
+## [0.2.0]
+- Replace the remaining Python with ctp-cosmic (Rust).
+
+## [0.1.0]
+- One-line install from GitHub Releases; procedural wallpapers.
+
+[Unreleased]: https://github.com/Lucas-BRT/catppuccin-cosmic-setup/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Lucas-BRT/catppuccin-cosmic-setup/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/Lucas-BRT/catppuccin-cosmic-setup/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/Lucas-BRT/catppuccin-cosmic-setup/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/Lucas-BRT/catppuccin-cosmic-setup/compare/v0.3.1...v0.4.0
+[0.3.1]: https://github.com/Lucas-BRT/catppuccin-cosmic-setup/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/Lucas-BRT/catppuccin-cosmic-setup/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/Lucas-BRT/catppuccin-cosmic-setup/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/tag/v0.1.0

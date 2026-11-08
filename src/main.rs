@@ -19,6 +19,7 @@ mod noise;
 mod palette;
 mod profiles;
 mod prompt;
+mod safety;
 mod seeded_styles;
 mod steps;
 mod styles;
