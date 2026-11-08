@@ -175,7 +175,7 @@ TOML
     grep -q 'user_pref("mine", 1);' "$profile/user.js"
     grep -q legacyUserProfileCustomizations "$profile/user.js"
     grep -q '/\* my css \*/' "$profile/chrome/userChrome.css"
-    grep -q -- '--toolbar-bgcolor: #1e1e2e' "$profile/chrome/userChrome.css"
+    grep -q -- '--toolbar-background-color: #1e1e2e' "$profile/chrome/userChrome.css"
     run ctp app check firefox
     [ "$status" -eq 0 ]
 

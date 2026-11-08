@@ -236,6 +236,26 @@ impl App {
             .collect())
     }
 
+    /// Things worth telling you after `apply`. For Firefox: a theme add-on
+    /// that is active keeps its own colors for some elements and clashes with
+    /// these.
+    pub fn notices(&self, home: &Path) -> Vec<String> {
+        if self.m.locate.as_deref() != Some("firefox") {
+            return Vec::new();
+        }
+        firefox_profiles(home)
+            .iter()
+            .filter_map(|dir| fs::read_to_string(dir.join("prefs.js")).ok())
+            .filter_map(|prefs| active_theme(&prefs))
+            .map(|id| {
+                format!(
+                    "{}: the theme {id} is active and clashes with these colors; choose \"System theme\" under Add-ons > Themes",
+                    self.label()
+                )
+            })
+            .collect()
+    }
+
     fn markers(&self, spec: &FileSpec) -> (String, String) {
         let mut c = spec.comment.as_deref().unwrap_or("#").split_whitespace();
         let (open, close) = (c.next().unwrap_or("#"), c.next());
@@ -446,13 +466,31 @@ fn value(key: &str, p: Palette, flavor: &str, accent: &str) -> Result<String, St
     }
 }
 
+/// The theme add-on selected in a profile's `prefs.js`, unless it is
+/// Firefox's own "System theme" (or the preference is missing).
+fn active_theme(prefs: &str) -> Option<String> {
+    let line = prefs
+        .lines()
+        .find(|l| l.contains("\"extensions.activeThemeID\""))?;
+    let id = line.rsplit('"').nth(1)?;
+    (id != "default-theme@mozilla.org").then(|| id.to_string())
+}
+
 /// The profile(s) Firefox marks as default, in every place it can live
 /// (regular, Flatpak, snap), from each `profiles.ini`.
 fn firefox_profiles(home: &Path) -> Vec<PathBuf> {
     let roots = [
+        // Firefox 147 and newer follow the XDG layout; older ones use ~/.mozilla.
+        ".config/mozilla/firefox",
         ".mozilla/firefox",
-        "snap/firefox/common/.mozilla/firefox",
+        // Flatpak and snap keep their own copy. The `config/` and `.config/`
+        // ones are the XDG layout, which Flatpak and snap are expected to use
+        // from Firefox 147; not checked against a real install. Only folders
+        // that exist are used, so a wrong guess costs nothing.
         ".var/app/org.mozilla.firefox/.mozilla/firefox",
+        ".var/app/org.mozilla.firefox/config/mozilla/firefox",
+        "snap/firefox/common/.mozilla/firefox",
+        "snap/firefox/common/.config/mozilla/firefox",
     ];
     let mut out: Vec<PathBuf> = Vec::new();
     for root in roots.map(|r| home.join(r)) {
@@ -660,6 +698,7 @@ pub fn main(args: Vec<String>) -> Result<u8, String> {
                 ui::warn("nothing to check yet (no profile or files)");
                 return Ok(1);
             }
+            app.notices(&home()?).iter().for_each(|n| ui::warn(n));
             for (path, current) in &files {
                 println!(
                     "{} {}",
@@ -813,7 +852,7 @@ mod tests {
         };
         assert_eq!(files.len(), 3);
         let css = fs::read_to_string(profile.join("chrome/userChrome.css")).unwrap();
-        assert!(css.contains("--toolbar-bgcolor: #1e1e2e") && css.contains("#cba6f7"));
+        assert!(css.contains("--toolbar-background-color: #1e1e2e") && css.contains("#cba6f7"));
         let js = fs::read_to_string(profile.join("user.js")).unwrap();
         assert!(
             js.starts_with("user_pref(\"mine\", 1);\n")
@@ -849,6 +888,46 @@ mod tests {
             "user_pref(\"mine\", 1);\n"
         );
         assert!(!profile.join("chrome/userChrome.css").exists());
+        fs::remove_dir_all(&home).unwrap();
+    }
+
+    #[test]
+    fn firefox_profile_is_found_in_the_xdg_folder() {
+        let home = scratch("xdg");
+        let root = home.join(".config/mozilla/firefox");
+        fs::create_dir_all(root.join("9f9kx489.default-release")).unwrap();
+        fs::write(
+            root.join("profiles.ini"),
+            "[Profile0]\nPath=9f9kx489.default-release\n[Install4F96D1932A9F858E]\nDefault=9f9kx489.default-release\n",
+        )
+        .unwrap();
+        assert_eq!(
+            firefox_profiles(&home),
+            [root.join("9f9kx489.default-release")]
+        );
+        fs::remove_dir_all(&home).unwrap();
+    }
+
+    #[test]
+    fn a_theme_addon_is_noticed() {
+        let on = "user_pref(\"extensions.activeThemeID\", \"{f5525f34-4102}\");\n";
+        assert_eq!(active_theme(on).as_deref(), Some("{f5525f34-4102}"));
+        let off = "user_pref(\"extensions.activeThemeID\", \"default-theme@mozilla.org\");\n";
+        assert_eq!(active_theme(off), None);
+        assert_eq!(active_theme("user_pref(\"other\", 1);\n"), None);
+
+        let home = scratch("addon");
+        let profile = home.join(".config/mozilla/firefox/p.default");
+        fs::create_dir_all(&profile).unwrap();
+        fs::write(
+            home.join(".config/mozilla/firefox/profiles.ini"),
+            "[Install1]\nDefault=p.default\n",
+        )
+        .unwrap();
+        let ff = find("firefox").unwrap().unwrap();
+        assert!(ff.notices(&home).is_empty());
+        fs::write(profile.join("prefs.js"), on).unwrap();
+        assert!(ff.notices(&home)[0].contains("{f5525f34-4102}"));
         fs::remove_dir_all(&home).unwrap();
     }
 

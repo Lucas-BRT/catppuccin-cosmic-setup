@@ -80,7 +80,7 @@ finds it, and `target` is then relative to the profile:
 locate = "firefox"      # the default profile in profiles.ini
 ```
 
-Only `firefox` exists so far (regular, Flatpak and snap installs).
+Only `firefox` exists so far.
 
 ## Firefox
 
@@ -89,11 +89,20 @@ such as the new tab and `about:preferences` (`userContent.css`), and turns on
 the preference Firefox needs to read them (`user.js`). Needs no root and
 installs no add-on.
 
-- Firefox must have been started once, so a profile exists.
+- Firefox must have been started once, so a profile exists. Regular installs
+  (`~/.config/mozilla/firefox`, or `~/.mozilla/firefox` before Firefox 147) are
+  checked, and so are Flatpak and snap. The Flatpak and snap locations of the
+  newer layout are guesses, not tested against a real install: if yours is
+  not found, open an issue with the path of your `profiles.ini`.
 - **Websites are not themed**: that takes an extension such as
   [Stylus](https://github.com/openstyles/stylus) with
   [catppuccin/userstyles](https://github.com/catppuccin/userstyles).
 - Restart Firefox to see the change.
-- The colors are mapped to Firefox's CSS variables, which Mozilla can rename
-  between versions: if part of the interface looks wrong after an update,
-  open an issue with your Firefox version.
+- A **theme add-on** that is active (for example a dark "Catppuccin" theme
+  while you apply Latte) keeps its own text and icon colors and clashes with
+  these. `apply` and `app check` warn when they see one; choose "System theme"
+  under Add-ons > Themes.
+- The colors are set through Firefox's own CSS variables, with the names
+  Firefox 159 uses. Mozilla can rename them between versions: if part of the
+  interface looks wrong after an update, open an issue with your Firefox
+  version.

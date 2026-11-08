@@ -770,9 +770,12 @@ fn step_app(o: &Opts, name: &str) -> Result<(), String> {
             ui::warn(&format!("{} was not themed", app.label()));
             ui::todo(&why);
         }
-        crate::apps::Outcome::Done(files) => files
-            .iter()
-            .for_each(|f| ui::ok(&format!("Themed {}", f.display()))),
+        crate::apps::Outcome::Done(files) => {
+            files
+                .iter()
+                .for_each(|f| ui::ok(&format!("Themed {}", f.display())));
+            app.notices(&home()?).iter().for_each(|n| ui::warn(n));
+        }
     }
     Ok(())
 }

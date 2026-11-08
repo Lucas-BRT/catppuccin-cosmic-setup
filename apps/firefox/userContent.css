@@ -1,14 +1,32 @@
+/* Firefox's own pages: new tab, settings, add-ons. Variable names are the
+   ones those pages use (checked against Firefox 159). */
 @-moz-document url-prefix("about:") {
   :root {
-    --in-content-page-background: @base@ !important;
-    --in-content-page-color: @text@ !important;
-    --in-content-box-background: @surface0@ !important;
-    --in-content-border-color: @surface1@ !important;
-    --in-content-link-color: @accent@ !important;
-    --in-content-primary-button-background: @accent@ !important;
-    --in-content-primary-button-text-color: @crust@ !important;
+    color-scheme: @scheme@ !important;
+
+    /* Settings, add-ons and the other about: pages */
+    --background-color-canvas: @base@ !important;
+    --background-color-box: @surface0@ !important;
+    --text-color: @text@ !important;
+    --text-color-deemphasized: @subtext0@ !important;
+    --border-color: @surface1@ !important;
+    --link-color: @accent@ !important;
+    --icon-color: @text@ !important;
+    --color-accent-primary: @accent@ !important;
+    --button-background-color-primary: @accent@ !important;
+    --button-text-color-primary: @crust@ !important;
+
+    /* New tab */
     --newtab-background-color: @base@ !important;
     --newtab-background-color-secondary: @surface0@ !important;
+    --newtab-background-card: @surface0@ !important;
+    --newtab-weather-background-color: @surface0@ !important;
+    --newtab-layout-panel-background: @mantle@ !important;
     --newtab-text-primary-color: @text@ !important;
+    --newtab-text-secondary-color: @subtext1@ !important;
+    --newtab-wordmark-color: @text@ !important;
+    --newtab-border-color: @surface1@ !important;
+    --newtab-primary-action-background: @accent@ !important;
+    --newtab-primary-element-text-color: @crust@ !important;
   }
 }
