@@ -1,0 +1,35 @@
+name: Upstream pins
+
+# Weekly: tell us when the upstream commits pinned in src/apply.rs are behind
+# their default branch. Opens one issue at a time.
+
+on:
+  schedule:
+    - cron: "43 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Compare pins with upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status=0
+          report=$(scripts/dev/check-pins.sh) || status=$?
+          case "$status" in
+            0) echo "All pins are current." ;;
+            10)
+              echo "$report"
+              open=$(gh issue list --state open --search "in:title Upstream pins are behind" --json number -q length)
+              [ "$open" -gt 0 ] || gh issue create --title "Upstream pins are behind" \
+                --body "$(printf 'scripts/dev/check-pins.sh reports:\n\n%s\n\nTest the new commits, then update src/apply.rs.' "$report")"
+              ;;
+            *) exit "$status" ;;
+          esac
