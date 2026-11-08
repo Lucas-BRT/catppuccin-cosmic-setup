@@ -89,6 +89,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
     }
     let _lock = crate::safety::lock()?;
     let mut paths: Vec<&str> = Vec::new();
+    let mut app_paths: Vec<String> = Vec::new();
     let (mut fonts, mut icon_files) = (false, false);
     let mut with_prompt = only.is_none();
     if let Some(list) = &only {
@@ -101,6 +102,10 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
                 continue;
             }
             icon_files |= name == "icons";
+            if let Some(app) = crate::apps::find(name)? {
+                app_paths.extend(app.watch(&home()?)?);
+                continue;
+            }
             let step = STEPS
                 .iter()
                 .find(|s| s.name == name)
@@ -109,6 +114,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
             with_prompt |= name == "bash";
         }
     }
+    paths.extend(app_paths.iter().map(String::as_str));
     let only_paths = only.is_some().then_some(paths.as_slice());
     // `--only fonts` removes files only; there is nothing to restore.
     if only.is_none() || !paths.is_empty() {

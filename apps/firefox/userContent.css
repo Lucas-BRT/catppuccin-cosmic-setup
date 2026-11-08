@@ -1,0 +1,14 @@
+@-moz-document url-prefix("about:") {
+  :root {
+    --in-content-page-background: @base@ !important;
+    --in-content-page-color: @text@ !important;
+    --in-content-box-background: @surface0@ !important;
+    --in-content-border-color: @surface1@ !important;
+    --in-content-link-color: @accent@ !important;
+    --in-content-primary-button-background: @accent@ !important;
+    --in-content-primary-button-text-color: @crust@ !important;
+    --newtab-background-color: @base@ !important;
+    --newtab-background-color-secondary: @surface0@ !important;
+    --newtab-text-primary-color: @text@ !important;
+  }
+}

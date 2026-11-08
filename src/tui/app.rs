@@ -58,6 +58,8 @@ pub enum Field {
     Slideshow,
     Font,
     Step(usize),
+    /// Index into `apps::catalog()`.
+    App(usize),
     Install,
 }
 
@@ -75,6 +77,7 @@ pub fn fields() -> Vec<Field> {
         Field::Font,
     ];
     f.extend((0..STEPS.len()).map(Field::Step));
+    f.extend((0..crate::apps::catalog().len()).map(Field::App));
     f.push(Field::Install);
     f
 }
@@ -100,6 +103,8 @@ pub struct Config {
     pub font: usize,
     pub fonts: Vec<String>,
     pub steps: [bool; STEPS.len()],
+    /// Which of `apps::catalog()` are on; apps stay off unless asked for.
+    pub apps: Vec<bool>,
 }
 
 impl Default for Config {
@@ -121,6 +126,7 @@ impl Default for Config {
             fonts: vec![KEEP_FONT.to_string()],
             // Optional steps (icons) stay off unless asked for.
             steps: STEPS.each_ref().map(|s| !s.optional),
+            apps: vec![false; crate::apps::catalog().len()],
         }
     }
 }
@@ -151,6 +157,10 @@ impl Config {
             steps: STEPS
                 .each_ref()
                 .map(|s| o.steps.iter().any(|n| n == s.name)),
+            apps: crate::apps::catalog()
+                .iter()
+                .map(|(name, _)| o.steps.contains(name))
+                .collect(),
         }
     }
 }
@@ -178,13 +188,19 @@ impl Config {
         self.style_id() == "all"
     }
 
-    /// Step names to pass to `apply`, in installer order.
+    /// Step names to pass to `apply`, in installer order, then the apps.
     pub fn step_args(&self) -> Vec<String> {
+        let apps = crate::apps::catalog()
+            .iter()
+            .zip(&self.apps)
+            .filter(|(_, on)| **on)
+            .map(|((name, _), _)| name.clone());
         STEPS
             .iter()
             .zip(self.steps)
             .filter(|(_, on)| *on)
             .map(|(s, _)| s.name.to_string())
+            .chain(apps)
             .collect()
     }
 
@@ -282,6 +298,7 @@ impl Setup {
             }
             Field::Font => cycle(&mut c.font, c.fonts.len(), forward),
             Field::Step(i) => c.steps[i] = !c.steps[i],
+            Field::App(i) => c.apps[i] = !c.apps[i],
             Field::Install => {}
         }
     }
@@ -407,6 +424,15 @@ impl Progress {
                 });
             }
         }
+        for ((name, label), on) in crate::apps::catalog().iter().zip(&cfg.apps) {
+            if *on {
+                steps.push(StepProgress {
+                    key: name,
+                    label,
+                    status: Status::Pending,
+                });
+            }
+        }
         Self {
             steps,
             log: Vec::new(),
@@ -433,6 +459,13 @@ impl Progress {
             .iter()
             .find(|(prefix, _)| header.starts_with(prefix))
             .map(|(_, key)| *key)
+            // An app prints its label as the header.
+            .or_else(|| {
+                crate::apps::catalog()
+                    .iter()
+                    .find(|(_, label)| header.starts_with(label.as_str()))
+                    .map(|(name, _)| name.as_str())
+            })
     }
 
     fn finish_current(&mut self) {
@@ -609,6 +642,50 @@ mod tests {
         assert_eq!(s.cfg.step_args(), ["bash"]);
         assert_eq!(press(&mut s, KeyCode::Enter), Action::Install);
         assert_eq!(press(&mut s, KeyCode::Char('q')), Action::Quit);
+    }
+
+    #[test]
+    fn apps_are_listed_toggled_and_followed() {
+        let ff = crate::apps::catalog()
+            .iter()
+            .position(|(n, _)| n == "firefox")
+            .expect("firefox is built in");
+        assert!(fields().contains(&Field::App(ff)));
+
+        // Off by default, on after toggling, and passed to apply by name.
+        let mut s = Setup::default();
+        assert!(!s.cfg.step_args().contains(&"firefox".to_string()));
+        goto(&mut s, Field::App(ff));
+        press(&mut s, KeyCode::Char(' '));
+        assert_eq!(
+            s.cfg.step_args().last().map(String::as_str),
+            Some("firefox")
+        );
+
+        // Saved choices that name the app switch it on again.
+        let o = crate::apply::Opts {
+            steps: vec!["firefox".into()],
+            ..crate::apply::Opts::default()
+        };
+        assert_eq!(Config::from_opts(&o, vec![]).step_args(), ["firefox"]);
+
+        // Its "==> Firefox" header drives the progress screen.
+        let mut p = Progress::new(&s.cfg, false);
+        let i = p.steps.iter().position(|x| x.key == "firefox").unwrap();
+        p.line(false, "==> Firefox");
+        assert_eq!(p.steps[i].status, Status::Running);
+        p.line(false, " ✓ Themed /x/userChrome.css");
+        p.exited(0);
+        assert_eq!(p.steps[i].status, Status::Done);
+
+        // An app that could not be themed yet is a warning, not a success.
+        let mut p = Progress::new(&s.cfg, false);
+        p.line(false, "==> Firefox");
+        p.line(false, " ! Firefox was not themed");
+        p.line(false, " ➜ no Firefox profile yet: start Firefox once");
+        p.exited(0);
+        let i = p.steps.iter().position(|x| x.key == "firefox").unwrap();
+        assert_eq!(p.steps[i].status, Status::Warning);
     }
 
     #[test]

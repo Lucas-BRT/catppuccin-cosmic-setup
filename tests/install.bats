@@ -106,3 +106,90 @@ existing_desktop() {
     [ "$status" -ne 0 ]
     [[ $output == *"in progress"* ]]
 }
+
+# --- apps (declarative manifests) -------------------------------------------
+
+ctp() { "$SANDBOX/bin/ctp-cosmic" "$@"; }
+
+# A throwaway "demo" app of your own that owns one file.
+demo_app() {
+    local dir=$HOME/.config/catppuccin-cosmic-setup/apps/demo
+    mkdir -p "$dir"
+    cat > "$dir/app.toml" <<TOML
+name = "demo"
+[[file]]
+target = "~/.config/demo/theme"
+template = "theme.in"
+mode = "file"
+TOML
+    echo 'bg=@base@ fg=@text@ accent=@accent@' > "$dir/theme.in"
+}
+
+@test "your own app is themed by apply and undone by uninstall" {
+    "$REPO/install.sh" --list >/dev/null
+    demo_app
+    run ctp apply demo
+    [ "$status" -eq 0 ]
+    [ "$(cat "$HOME/.config/demo/theme")" = "bg=#1e1e2e fg=#cdd6f4 accent=#cba6f7" ]
+    run ctp apply demo --flavor latte --accent blue
+    [ "$(cat "$HOME/.config/demo/theme")" = "bg=#eff1f5 fg=#4c4f69 accent=#1e66f5" ]
+    run ctp uninstall
+    [ "$status" -eq 0 ]
+    [ "$(cat "$HOME/.config/demo/theme")" = "bg=#1e1e2e fg=#cdd6f4 accent=#cba6f7" ]
+}
+
+@test "a manifest that writes outside your home is refused, and does not break the others" {
+    "$REPO/install.sh" --list >/dev/null
+    demo_app
+    mkdir -p "$HOME/.config/catppuccin-cosmic-setup/apps/evil"
+    cat > "$HOME/.config/catppuccin-cosmic-setup/apps/evil/app.toml" <<'TOML'
+name = "evil"
+[[file]]
+target = "~/../../tmp/pwned"
+template = "t"
+mode = "file"
+TOML
+    echo x > "$HOME/.config/catppuccin-cosmic-setup/apps/evil/t"
+    run ctp app list
+    [ "$status" -eq 0 ]
+    [[ $output == *"demo"* && $output == *"skipped"* ]]
+    run ctp apply evil
+    [ "$status" -ne 0 ]
+    [[ $output == *"unknown step 'evil'"* ]]
+    run ctp apply demo
+    [ "$status" -eq 0 ]
+}
+
+@test "firefox: your profile content is kept, and uninstall --only firefox restores it" {
+    "$REPO/install.sh" --list >/dev/null
+    profile=$HOME/.mozilla/firefox/abc.default-release
+    mkdir -p "$profile/chrome"
+    printf '[Install1]\nDefault=abc.default-release\n' > "$HOME/.mozilla/firefox/profiles.ini"
+    echo 'user_pref("mine", 1);' > "$profile/user.js"
+    echo '/* my css */' > "$profile/chrome/userChrome.css"
+    printf '#!/bin/sh\nexit 0\n' > "$SANDBOX/fakebin/firefox"
+    chmod +x "$SANDBOX/fakebin/firefox"
+
+    run ctp apply firefox
+    [ "$status" -eq 0 ]
+    grep -q 'user_pref("mine", 1);' "$profile/user.js"
+    grep -q legacyUserProfileCustomizations "$profile/user.js"
+    grep -q '/\* my css \*/' "$profile/chrome/userChrome.css"
+    grep -q -- '--toolbar-bgcolor: #1e1e2e' "$profile/chrome/userChrome.css"
+    run ctp app check firefox
+    [ "$status" -eq 0 ]
+
+    run ctp uninstall --only firefox
+    [ "$status" -eq 0 ]
+    [ "$(cat "$profile/user.js")" = 'user_pref("mine", 1);' ]
+    [ "$(cat "$profile/chrome/userChrome.css")" = '/* my css */' ]
+    [ ! -e "$profile/chrome/userContent.css" ]
+}
+
+@test "firefox without a profile asks you to start it once" {
+    "$REPO/install.sh" --list >/dev/null
+    mkdir -p "$HOME/snap/firefox"
+    run ctp apply firefox
+    [ "$status" -eq 0 ]
+    [[ $output == *"start Firefox once"* ]]
+}

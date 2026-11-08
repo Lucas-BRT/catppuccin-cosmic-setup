@@ -6,6 +6,10 @@ also get notes generated from their commits on the releases page.
 ## [Unreleased]
 
 ### Added
+- Theme other apps from a declarative manifest (`ctp-cosmic apply NAME`,
+  `ctp-cosmic app`): built-in Firefox support (interface and built-in pages,
+  no root) and your own apps in `~/.config/catppuccin-cosmic-setup/apps/`.
+  See docs/APPS.md.
 - `install.sh` accepts `CATPPUCCIN_SETUP_SHA256` to pin the binary's hash and
   checks the release's signed provenance attestation when `gh` is installed
   (`CATPPUCCIN_SETUP_VERIFY=1` makes it mandatory). It refuses to run as root,
@@ -23,6 +27,7 @@ also get notes generated from their commits on the releases page.
 - A release is built only if its tests pass.
 
 ### Fixed
+- Output is plain text without a terminal or with `NO_COLOR`.
 - A `~/.bashrc` that is a symlink (dotfile managers) was not backed up, and
   `uninstall` stopped at "no backup found" before removing the prompt block.
 

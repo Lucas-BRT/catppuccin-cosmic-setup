@@ -109,6 +109,7 @@ icons step, uses the light Papirus icons).
 | `wallpaper` | renders a wallpaper and sets it as the background |
 | `gtk` | **optional**, see [GTK and Flatpak apps](#gtk-and-flatpak-apps-optional) |
 | `icons` | **optional**, runs last (it is the slowest), see [Icons](#icons-optional) |
+| *apps* | **optional**: `firefox`, and any app you describe yourself; run only when named, see [APPS.md](APPS.md) |
 
 ### Terminal
 

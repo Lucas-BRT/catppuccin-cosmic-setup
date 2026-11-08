@@ -1,0 +1,24 @@
+:root {
+  --toolbar-bgcolor: @base@ !important;
+  --toolbar-color: @text@ !important;
+  --toolbar-field-background-color: @surface0@ !important;
+  --toolbar-field-color: @text@ !important;
+  --toolbar-field-focus-background-color: @surface0@ !important;
+  --toolbar-field-focus-color: @text@ !important;
+  --toolbar-field-focus-border-color: @accent@ !important;
+  --urlbar-box-bgcolor: @surface0@ !important;
+  --urlbar-box-hover-bgcolor: @surface1@ !important;
+  --tab-selected-bgcolor: @surface0@ !important;
+  --tab-selected-textcolor: @text@ !important;
+  --arrowpanel-background: @mantle@ !important;
+  --arrowpanel-color: @text@ !important;
+  --arrowpanel-border-color: @surface1@ !important;
+  --sidebar-background-color: @mantle@ !important;
+  --sidebar-text-color: @text@ !important;
+  --focus-outline-color: @accent@ !important;
+}
+
+#navigator-toolbox,
+#TabsToolbar {
+  background-color: @mantle@ !important;
+}

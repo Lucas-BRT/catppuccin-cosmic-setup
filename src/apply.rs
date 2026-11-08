@@ -255,7 +255,7 @@ pub fn validate(o: &Opts) -> Result<(), String> {
     if let Some(unknown) = o
         .steps
         .iter()
-        .find(|s| !STEPS.iter().any(|k| k.name == **s))
+        .find(|s| !STEPS.iter().any(|k| k.name == **s) && !crate::apps::exists(s))
     {
         return Err(format!("unknown step '{unknown}' (see --list)"));
     }
@@ -354,7 +354,7 @@ fn fetch_pinned((slug, rev): (&str, &str), dest: &Path, only: &[&str]) -> Result
 
 // --- steps ------------------------------------------------------------------
 
-fn step_backup() -> Result<PathBuf, String> {
+fn step_backup(extra: &[String]) -> Result<PathBuf, String> {
     let stamp = Command::new("date")
         .arg("+%F-%H%M%S")
         .output()
@@ -372,7 +372,7 @@ fn step_backup() -> Result<PathBuf, String> {
         dest = PathBuf::from(format!("{}-{n}", base.display()));
     }
     ui::info(&format!("Backing up to {}", dest.display()));
-    backup::create(&dest)?;
+    backup::create(&dest, extra)?;
     // The current theme as a standalone .ron that can be re-imported:
     //   cosmic-settings appearance import <backup>/previous-theme.ron
     let _ = Command::new("cosmic-settings")
@@ -741,16 +741,56 @@ pub fn plan(o: &Opts) -> Vec<String> {
             other => other.to_string(),
         });
     }
+    for name in o.steps.iter().filter(|n| !is_builtin(n)) {
+        out.push(format!(
+            "{name}: write Catppuccin {name_} into the app's files, keeping your own content (skipped if the app is not installed)",
+            name_ = name_of(o)
+        ));
+    }
     out
+}
+
+fn name_of(o: &Opts) -> String {
+    Palette::new(&o.flavor)
+        .map(|p| p.name())
+        .unwrap_or_default()
+}
+
+fn is_builtin(name: &str) -> bool {
+    STEPS.iter().any(|s| s.name == name)
+}
+
+fn step_app(o: &Opts, name: &str) -> Result<(), String> {
+    let app = crate::apps::find(name)?.ok_or(format!("unknown step '{name}'"))?;
+    ui::info(app.label());
+    match app.apply(&o.flavor, &o.accent, &home()?)? {
+        crate::apps::Outcome::Skipped(why) => ui::warn(&why),
+        crate::apps::Outcome::Waiting(why) => {
+            // A warning too, so the interactive setup does not show it as done.
+            ui::warn(&format!("{} was not themed", app.label()));
+            ui::todo(&why);
+        }
+        crate::apps::Outcome::Done(files) => files
+            .iter()
+            .for_each(|f| ui::ok(&format!("Themed {}", f.display()))),
+    }
+    Ok(())
 }
 
 /// Runs the chosen steps in installer order. The backup is sealed even if a
 /// step fails, so `uninstall` can still undo what was done.
 pub fn run(o: &Opts, partial: bool) -> Result<(), String> {
+    // Apps are steps by their own name; the backup must watch what they write.
+    let apps: Vec<&String> = o.steps.iter().filter(|n| !is_builtin(n)).collect();
+    let mut watched = Vec::new();
+    for name in &apps {
+        let app = crate::apps::find(name)?.ok_or(format!("unknown step '{name}'"))?;
+        watched.extend(app.watch(&home()?)?);
+    }
     let backup_dir = if o.no_backup {
         None
     } else {
-        Some(step_backup()?)
+        Some(step_backup(&watched)?)
     };
     let result = STEPS
         .iter()
@@ -764,9 +804,10 @@ pub fn run(o: &Opts, partial: bool) -> Result<(), String> {
             "gtk" => step_gtk(o),
             "wallpaper" => step_wallpaper(o),
             other => Err(format!("unknown step '{other}'")),
-        });
+        })
+        .and_then(|()| apps.iter().try_for_each(|name| step_app(o, name)));
     if let Some(dir) = &backup_dir
-        && let Err(e) = backup::seal(dir)
+        && let Err(e) = backup::seal(dir, &watched)
     {
         ui::warn(&format!(
             "Could not record the changes ({e}); uninstall cannot undo this run"
@@ -792,6 +833,7 @@ Usage:
   ctp-cosmic apply --list             list the steps
 
 Steps: cosmic, terminal, bash, zed, wallpaper, and icons and gtk (only when named).
+Apps (`ctp-cosmic app list`, only when named): firefox, and any of your own.
 
 Options (each also an environment variable; flags win):
   --flavor NAME            FLAVOR            latte, frappe, macchiato, mocha (mocha)
@@ -853,6 +895,9 @@ pub fn main(mut args: Vec<String>) -> Result<u8, String> {
                 ""
             };
             println!("{}  ({}){note}", s.name, s.label);
+        }
+        for (name, label) in crate::apps::catalog() {
+            println!("{name}  ({label}) [app, run only when named]");
         }
         return Ok(0);
     }
