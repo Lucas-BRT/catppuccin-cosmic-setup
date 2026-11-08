@@ -40,7 +40,7 @@ would do first. Options and wallpaper styles are in
 the version and the binary's hash (it is in the release's `SHA256SUMS`):
 
 ```bash
-V=v0.7.0
+V=v0.8.0
 curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/download/$V/install.sh -o install.sh
 less install.sh   # read it
 CATPPUCCIN_SETUP_VERSION=$V CATPPUCCIN_SETUP_SHA256=<hash of the binary for your arch> bash install.sh
