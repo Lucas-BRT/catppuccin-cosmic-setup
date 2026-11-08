@@ -17,7 +17,7 @@ use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use crate::palette;
+use crate::{palette, ui};
 
 const USAGE: &str = "\
 ctp-cosmic icons: Papirus icons with Catppuccin folders
@@ -42,6 +42,31 @@ const CONTROLS: [&str; 4] = [
 
 fn io<T>(r: std::io::Result<T>, path: &Path) -> Result<T, String> {
     r.map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// Marks a theme directory as installed by this tool.
+const OWNED: &str = ".ctp-owned";
+
+/// Whether `theme` in `icons` was installed by this tool, not by the user.
+/// Older versions left no marker, only `Papirus/.ctp-source`; the
+/// `-Catppuccin` themes are always ours.
+fn is_ours(icons: &Path, theme: &str) -> bool {
+    theme.ends_with("-Catppuccin")
+        || icons.join(theme).join(OWNED).exists()
+        || icons.join("Papirus/.ctp-source").exists()
+}
+
+/// Remove `theme` if this tool installed it, and put back the one the user
+/// had before (`<theme>.user-backup`). A theme that is the user's own stays.
+pub fn release(icons: &Path, theme: &str) {
+    let dir = icons.join(theme);
+    if fs::symlink_metadata(&dir).is_ok() && is_ours(icons, theme) {
+        let _ = fs::remove_dir_all(&dir);
+    }
+    let kept = icons.join(format!("{theme}.user-backup"));
+    if fs::symlink_metadata(&kept).is_ok() && fs::symlink_metadata(&dir).is_err() {
+        let _ = fs::rename(&kept, &dir);
+    }
 }
 
 /// Copies a tree, keeping symlinks as symlinks (Papirus-Dark is mostly links
@@ -157,9 +182,28 @@ pub fn apply(flavor: &str, accent: &str, p: &Paths) -> Result<String, String> {
         for theme in ["Papirus", "Papirus-Dark"] {
             let dest = p.icons.join(theme);
             if fs::symlink_metadata(&dest).is_ok() {
-                io(fs::remove_dir_all(&dest), &dest)?;
+                if is_ours(&p.icons, theme) {
+                    io(fs::remove_dir_all(&dest), &dest)?;
+                } else {
+                    // The user's own Papirus: keep it, `uninstall` puts it back.
+                    let kept = p.icons.join(format!("{theme}.user-backup"));
+                    if fs::symlink_metadata(&kept).is_ok() {
+                        return Err(format!(
+                            "{} is not from this installer and {} already exists; move one of them away",
+                            dest.display(),
+                            kept.display()
+                        ));
+                    }
+                    ui::warn(&format!(
+                        "Moving your {} to {}",
+                        dest.display(),
+                        kept.display()
+                    ));
+                    io(fs::rename(&dest, &kept), &dest)?;
+                }
             }
             copy_tree(&p.papirus.join(theme), &dest)?;
+            io(fs::write(dest.join(OWNED), ""), &dest)?;
         }
         for entry in io(fs::read_dir(p.folders.join("src")), &p.folders)? {
             let entry = io(entry, &p.folders)?;
@@ -275,6 +319,25 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn release_removes_ours_and_restores_the_users_papirus() {
+        let d = std::env::temp_dir().join(format!("ctp-icons-release-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&d);
+        // The user's own Papirus was moved aside; ours took its place.
+        touch(&d.join("Papirus.user-backup/mine"), "mine");
+        touch(&d.join("Papirus/.ctp-source"), "rev");
+        touch(&d.join("Papirus/.ctp-owned"), "");
+        release(&d, "Papirus");
+        assert_eq!(fs::read_to_string(d.join("Papirus/mine")).unwrap(), "mine");
+        assert!(!d.join("Papirus/.ctp-owned").exists());
+        // With no sign of this tool, the user's theme is left alone.
+        let _ = fs::remove_dir_all(&d);
+        touch(&d.join("Papirus-Dark/mine"), "mine");
+        release(&d, "Papirus-Dark");
+        assert!(d.join("Papirus-Dark/mine").exists());
+        fs::remove_dir_all(&d).unwrap();
+    }
+
     use super::*;
 
     fn touch(p: &Path, text: &str) {

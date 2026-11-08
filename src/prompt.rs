@@ -69,7 +69,7 @@ pub fn install(flavor: &str, accent: &str) -> Result<(), String> {
 
     let bashrc = home.join(".bashrc");
     let text = with_block(&read_bashrc(&bashrc)?);
-    fs::write(&bashrc, text).map_err(|e| format!("{}: {e}", bashrc.display()))
+    crate::safety::write_atomic(&bashrc, &text)
 }
 
 /// Whether the prompt for this accent is installed and sourced from ~/.bashrc.
@@ -85,8 +85,7 @@ pub fn remove() -> Result<(), String> {
     let bashrc = home()?.join(".bashrc");
     let text = read_bashrc(&bashrc)?;
     if text.contains(START) {
-        fs::write(&bashrc, without_block(&text))
-            .map_err(|e| format!("{}: {e}", bashrc.display()))?;
+        crate::safety::write_atomic(&bashrc, &without_block(&text))?;
     }
     Ok(())
 }

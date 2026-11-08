@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use crate::apply::{cache_dir, home, state_dir};
 use crate::steps::STEPS;
-use crate::{backup, prompt, ui};
+use crate::{backup, icons, prompt, ui};
 
 const USAGE: &str = "\
 ctp-cosmic uninstall: undo the last apply
@@ -21,7 +21,8 @@ listed; --force restores them anyway). The prompt block is removed from
 
 --only restores just those steps (cosmic, terminal, bash, zed, icons,
 wallpaper); run it again for the others. `--only icons` also deletes the
-Papirus themes, and `--only fonts` deletes the Nerd Fonts that apply
+Papirus themes this tool installed (a Papirus of yours is put back), and
+`--only fonts` deletes the Nerd Fonts that apply
 installed (nothing is restored for it).
 
 --purge also deletes the Papirus icons, generated themes, wallpapers named
@@ -46,7 +47,9 @@ const ICON_THEMES: [&str; 4] = [
 fn purge() -> Result<(), String> {
     let home = home()?;
     let icons = home.join(".local/share/icons");
-    let mut doomed: Vec<PathBuf> = ICON_THEMES.iter().map(|t| icons.join(t)).collect();
+    // Only the themes this tool installed; a Papirus of yours is put back.
+    ICON_THEMES.iter().for_each(|t| icons::release(&icons, t));
+    let mut doomed: Vec<PathBuf> = Vec::new();
     doomed.extend([
         home.join(".local/share/catppuccin"),
         home.join(".config/catppuccin"),
@@ -84,6 +87,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
             other => return Err(format!("unexpected argument '{other}'\n\n{USAGE}")),
         }
     }
+    let _lock = crate::safety::lock()?;
     let mut paths: Vec<&str> = Vec::new();
     let (mut fonts, mut icon_files) = (false, false);
     let mut with_prompt = only.is_none();
@@ -137,7 +141,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
     }
     if icon_files {
         for t in ICON_THEMES {
-            remove(&home.join(".local/share/icons").join(t));
+            icons::release(&home.join(".local/share/icons"), t);
         }
         ui::ok("Papirus icons removed");
     }
