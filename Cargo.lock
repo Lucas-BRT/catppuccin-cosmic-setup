@@ -77,12 +77,6 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "base64"
-version = "0.21.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
-
-[[package]]
-name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
@@ -331,7 +325,7 @@ dependencies = [
  "iced_futures",
  "known-folders",
  "notify",
- "ron 0.12.2",
+ "ron",
  "serde",
  "tracing",
  "xdg",
@@ -358,7 +352,7 @@ dependencies = [
  "dirs",
  "hex_color",
  "palette",
- "ron 0.12.2",
+ "ron",
  "serde",
  "thiserror 2.0.21",
 ]
@@ -484,7 +478,7 @@ dependencies = [
  "png",
  "ratatui",
  "rayon",
- "ron 0.8.1",
+ "ron",
  "serde",
 ]
 
@@ -1973,18 +1967,6 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "ron"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b91f7eff05f748767f183df4320a63d6936e9c6107d97c9e6bdd9784f4289c94"
-dependencies = [
- "base64 0.21.7",
- "bitflags 2.13.2",
- "serde",
- "serde_derive",
-]
-
-[[package]]
-name = "ron"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81116b9531d61eabc41aeb228e4b6b2435bcca3233b98cf3b3077d4e6e9debb3"
@@ -2373,7 +2355,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4676b37242ccbd1aabf56edb093a4827dc49086c0ffd764a5705899e0f35f8f7"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64",
  "bitflags 2.13.2",
  "fancy-regex",
  "filedescriptor",
