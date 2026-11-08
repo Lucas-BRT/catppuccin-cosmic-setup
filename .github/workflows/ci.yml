@@ -47,7 +47,9 @@ jobs:
       # its binary from GitHub release assets while building its image and
       # fails whenever that download does.
       - run: cargo install cargo-deny --version 0.20.2 --locked
-      - run: cargo deny check advisories
+      # --exclude-dev: cosmic-theme is a test-only dependency (it parses the
+      # generated themes) and is not in the shipped binary.
+      - run: cargo deny --exclude-dev check advisories
 
   install-tests:
     name: Installer tests (bats)
