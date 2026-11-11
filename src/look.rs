@@ -253,4 +253,78 @@ mod tests {
         );
         std::fs::remove_dir_all(&dir).unwrap();
     }
+
+    /// Drives the real `cosmic-settings appearance import`. Run it with HOME
+    /// and XDG_CONFIG_HOME pointing at a throwaway copy of ~/.config/cosmic,
+    /// whose path contains "ctp-sandbox":
+    /// `cargo test -- --ignored real_cosmic_import`.
+    #[test]
+    #[ignore = "needs cosmic-settings and a sandbox HOME"]
+    fn real_cosmic_import() {
+        let dirs = Dirs::home().unwrap();
+        assert!(
+            dirs.config.to_string_lossy().contains("ctp-sandbox"),
+            "refusing to touch {}",
+            dirs.config.display()
+        );
+        let read = |p: &str| std::fs::read_to_string(dirs.config.join(p)).unwrap_or_default();
+        let dark = look("mesh");
+        apply(&dark, &dirs, true).unwrap();
+        assert_eq!(
+            active_name(&dirs.config, true).as_deref(),
+            Some(dark.name().as_str())
+        );
+        let slug = bundle_slug(&dirs.config, &dark.name()).expect("COSMIC saved a theme");
+        let png = "catppuccin-mocha-teal-mesh.png";
+        assert!(read("com.system76.CosmicBackground.Dark/v1/all").contains(png));
+        assert!(
+            read(&format!(
+                "com.system76.CosmicThemeBundle.{slug}.Background/v1/all"
+            ))
+            .contains(png),
+            "the saved theme keeps the wallpaper"
+        );
+        // Layout and fonts the sandbox already had must survive the import.
+        assert_eq!(
+            read("com.system76.CosmicTheme.Dark/v2/gaps").trim(),
+            "(0, 12)"
+        );
+        assert_eq!(
+            read("com.system76.CosmicTheme.Dark/v2/icon_theme").trim(),
+            "\"Papirus-Dark\""
+        );
+
+        // The same look again saves no second theme.
+        let count = || {
+            std::fs::read_dir(&dirs.config)
+                .unwrap()
+                .flatten()
+                .filter(|e| e.file_name().to_string_lossy().ends_with(".Theme"))
+                .count()
+        };
+        let before = count();
+        apply(&dark, &dirs, true).unwrap();
+        assert_eq!(count(), before);
+
+        // A light look sets the light wallpaper and the light mode.
+        let light = Look {
+            flavor: "latte".into(),
+            accent: "blue".into(),
+            style: "dots".into(),
+        };
+        apply(&light, &dirs, true).unwrap();
+        assert_eq!(
+            active_name(&dirs.config, false).as_deref(),
+            Some(light.name().as_str())
+        );
+        assert!(
+            read("com.system76.CosmicBackground.Light/v1/all")
+                .contains("catppuccin-latte-blue-dots.png")
+        );
+        assert!(
+            read("com.system76.CosmicBackground.Dark/v1/all").contains(png),
+            "dark kept its own"
+        );
+        assert!(!is_dark_now(&dirs.config));
+    }
 }
