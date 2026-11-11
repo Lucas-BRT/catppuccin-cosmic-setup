@@ -638,6 +638,8 @@ fn step_wallpaper(o: &Opts) -> Result<(), String> {
     let home = home()?;
     let config = home.join(".config/cosmic");
     let pictures = home.join("Pictures/Wallpapers");
+    let dark = palette::check(&o.flavor, None)?.is_dark();
+    let slug = format!("catppuccin-{}-{}", o.flavor, o.accent);
     if let Some(img) = &o.wallpaper_image {
         ui::info(&format!(
             "Wallpaper ({}, {} accent, your image)",
@@ -650,7 +652,7 @@ fn step_wallpaper(o: &Opts) -> Result<(), String> {
         let file = pictures.join(format!("catppuccin-{}-{}-{stem}.png", o.flavor, o.accent));
         fs::create_dir_all(&pictures).map_err(|e| format!("{}: {e}", pictures.display()))?;
         wallpaper::recolor(Path::new(img), &file, &o.flavor, 40.0)?;
-        background::set(&config, &file.display().to_string(), None)?;
+        background::set(&config, &file.display().to_string(), None, dark, Some(&slug))?;
         ui::ok(&format!("Background: {}", file.display()));
         return Ok(());
     }
@@ -668,7 +670,7 @@ fn step_wallpaper(o: &Opts) -> Result<(), String> {
         let file = pictures.join(format!("catppuccin-{}-{}{suffix}.png", o.flavor, o.accent));
         fs::create_dir_all(&pictures).map_err(|e| format!("{}: {e}", pictures.display()))?;
         wallpaper::render_to(&file, &o.style, &o.flavor, &o.accent)?;
-        background::set(&config, &file.display().to_string(), None)?;
+        background::set(&config, &file.display().to_string(), None, dark, Some(&slug))?;
         ui::ok(&format!("Background: {}", file.display()));
         return Ok(());
     }
@@ -697,6 +699,8 @@ fn step_wallpaper(o: &Opts) -> Result<(), String> {
                 &config,
                 &dir.display().to_string(),
                 Some(steps::rotate_seconds(r)?),
+                dark,
+                Some(&slug),
             )?;
             ui::ok(&format!(
                 "Background: slideshow of {} every {r}",
@@ -795,9 +799,14 @@ pub fn run(o: &Opts, partial: bool) -> Result<(), String> {
     } else {
         Some(step_backup(&watched)?)
     };
-    let result = STEPS
+    // Icons go before the desktop theme: its import also fills the theme bundle.
+    let mut order: Vec<_> = STEPS
         .iter()
         .filter(|s| o.steps.iter().any(|n| n == s.name))
+        .collect();
+    order.sort_by_key(|s| s.name != "icons");
+    let result = order
+        .into_iter()
         .try_for_each(|s| match s.name {
             "cosmic" => step_cosmic(o),
             "terminal" => step_terminal(o),

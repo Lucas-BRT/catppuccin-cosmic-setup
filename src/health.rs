@@ -247,7 +247,14 @@ pub fn check(o: &Opts, home: &Path) -> Vec<Line> {
                 )
             }
             "wallpaper" => {
-                let all = read(&cosmic.join("com.system76.CosmicBackground/v1/all"));
+                // Newer COSMIC shows the wallpaper of the current mode.
+                let mode = if p.is_dark() { "Dark" } else { "Light" };
+                let mut all = read(&cosmic.join(format!(
+                    "com.system76.CosmicBackground.{mode}/v1/all"
+                )));
+                if all.is_empty() {
+                    all = read(&cosmic.join("com.system76.CosmicBackground/v1/all"));
+                }
                 line(
                     all.contains(&format!("catppuccin-{}-{}", o.flavor, o.accent)),
                     format!("wallpaper: catppuccin-{}-{}", o.flavor, o.accent),
@@ -336,6 +343,8 @@ mod tests {
                 .join("Pictures/Wallpapers/catppuccin-mocha-mauve.png")
                 .display()
                 .to_string(),
+            None,
+            true,
             None,
         )
         .unwrap();

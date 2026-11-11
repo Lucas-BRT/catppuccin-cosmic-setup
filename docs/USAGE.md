@@ -176,6 +176,11 @@ ctp-cosmic theme --flavor macchiato --accent teal --frosted high -o my-theme.ron
 ctp-cosmic theme --help
 ```
 
+> On COSMIC builds from November 2026 on, the font, monospace font and icon
+> theme belong to the theme. `ctp-cosmic theme install` keeps yours; the
+> ready-made files in `themes/` and the ones from `theme -o` do not carry
+> them, so importing one by hand resets them to the defaults.
+
 ## Wallpapers
 
 Rows in the [preview](previews.png) follow this order:

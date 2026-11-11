@@ -43,7 +43,7 @@ pub const STEPS: [Step; 7] = [
         label: "Wallpaper",
         optional: false,
         paths: &[
-            ".config/cosmic/com.system76.CosmicBackground/",
+            ".config/cosmic/com.system76.CosmicBackground",
             ".config/cosmic/com.system76.CosmicSettings.Wallpaper/",
         ],
     },
@@ -53,7 +53,8 @@ pub const STEPS: [Step; 7] = [
         optional: true,
         paths: &[".local/share/flatpak/overrides/"],
     },
-    // Last: the slowest step.
+    // Last: the slowest step. `apply` still runs it before "cosmic", so the
+    // theme bundle COSMIC keeps carries the icon theme.
     Step {
         name: "icons",
         label: "Papirus icons (optional)",
