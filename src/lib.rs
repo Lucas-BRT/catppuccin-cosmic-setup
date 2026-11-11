@@ -11,6 +11,7 @@ pub mod gtk;
 pub mod health;
 pub mod icons;
 pub mod image;
+pub mod look;
 pub mod math_styles;
 pub mod nerdfont;
 pub mod noise;

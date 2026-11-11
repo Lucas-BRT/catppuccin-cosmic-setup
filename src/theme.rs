@@ -116,6 +116,9 @@ pub struct Options {
     /// Raw RON of the theme-owned settings COSMIC 1.11 keeps in the builder
     /// (`font`, `mono_font`, `icon_theme`), so a re-import does not reset them.
     pub keep: Vec<(String, String)>,
+    /// The theme's name in COSMIC (and so its card in Appearance); None is
+    /// "Catppuccin-<Flavor>-<Accent>".
+    pub name: Option<String>,
 }
 
 impl Default for Options {
@@ -132,6 +135,7 @@ impl Default for Options {
             active_hint: 3,
             density: "standard".into(),
             keep: Vec::new(),
+            name: None,
         }
     }
 }
@@ -172,11 +176,14 @@ pub fn build(o: &Options) -> String {
         "    palette: {}((",
         if dark { "Dark" } else { "Light" }
     ));
-    l.push(format!(
-        "        name: \"Catppuccin-{}-{}\",",
-        capitalize(&o.flavor),
-        capitalize(&o.accent)
-    ));
+    let name = o.name.clone().unwrap_or_else(|| {
+        format!(
+            "Catppuccin-{}-{}",
+            capitalize(&o.flavor),
+            capitalize(&o.accent)
+        )
+    });
+    l.push(format!("        name: {name:?},"));
     for (field, color) in PALETTE_MAP {
         l.push(format!("        {field}: \"{}\",", hexa(p, color)));
     }
@@ -193,16 +200,21 @@ pub fn build(o: &Options) -> String {
     }
     l.push("    ),".into());
 
-    l.push("    corner_radii: (".into());
-    let radii = ROUNDNESS
-        .iter()
-        .find(|(n, _)| *n == o.roundness)
-        .expect("validated roundness")
-        .1;
-    for (k, r) in ["0", "xs", "s", "m", "l", "xl"].iter().zip(radii) {
-        l.push(format!("        radius_{k}: ({r}.0, {r}.0, {r}.0, {r}.0),"));
+    let kept = |key: &str| o.keep.iter().find(|(k, _)| k == key).map(|(_, v)| v);
+    if let Some(text) = kept("corner_radii") {
+        l.push(format!("    corner_radii: {text},"));
+    } else {
+        l.push("    corner_radii: (".into());
+        let radii = ROUNDNESS
+            .iter()
+            .find(|(n, _)| *n == o.roundness)
+            .expect("validated roundness")
+            .1;
+        for (k, r) in ["0", "xs", "s", "m", "l", "xl"].iter().zip(radii) {
+            l.push(format!("        radius_{k}: ({r}.0, {r}.0, {r}.0, {r}.0),"));
+        }
+        l.push("    ),".into());
     }
-    l.push("    ),".into());
 
     let opt = |l: &mut Vec<String>, name: &str, color: Option<&str>| {
         l.push(match color {
@@ -229,10 +241,18 @@ pub fn build(o: &Options) -> String {
         .0;
     l.push(format!("    frosted: {blur_name},"));
     for (key, text) in &o.keep {
-        l.push(format!("    {key}: {text},"));
+        if !LAYOUT_KEYS.contains(&key.as_str()) {
+            l.push(format!("    {key}: {text},"));
+        }
     }
-    l.push(format!("    gaps: ({}, {}),", o.gaps.0, o.gaps.1));
-    l.push(format!("    active_hint: {},", o.active_hint));
+    match kept("gaps") {
+        Some(text) => l.push(format!("    gaps: {text},")),
+        None => l.push(format!("    gaps: ({}, {}),", o.gaps.0, o.gaps.1)),
+    }
+    match kept("active_hint") {
+        Some(text) => l.push(format!("    active_hint: {text},")),
+        None => l.push(format!("    active_hint: {},", o.active_hint)),
+    }
     // Active window outline.
     opt(
         &mut l,
@@ -385,13 +405,17 @@ fn current_frost(builder: &Path) -> Option<(String, Vec<String>)> {
 
 /// Settings the builder keeps since COSMIC 1.11, as COSMIC stores them.
 const KEEP_KEYS: [&str; 3] = ["font", "mono_font", "icon_theme"];
+/// What `Appearance` also sets per theme; kept only when asked (`keep_layout`),
+/// since `theme install` has flags for them.
+const LAYOUT_KEYS: [&str; 3] = ["gaps", "active_hint", "corner_radii"];
 
 /// The current value of each KEEP_KEYS setting: this mode's builder first,
 /// then the other mode's. shortcut: the text is trusted as COSMIC wrote it;
 /// a hand-broken file makes the import fail, not corrupt anything.
-fn current_keep(this: &Path, other: &Path) -> Vec<(String, String)> {
+fn current_keep(this: &Path, other: &Path, layout: bool) -> Vec<(String, String)> {
     KEEP_KEYS
         .iter()
+        .chain(LAYOUT_KEYS.iter().filter(|_| layout))
         .filter_map(|k| {
             [this, other]
                 .iter()
@@ -461,6 +485,11 @@ pub struct InstallOpts {
     pub frosted: String,
     pub frost_on: Option<Vec<String>>,
     pub apply: bool,
+    /// Keep COSMIC's own gaps, active hint size and corner radii instead of
+    /// the ones above.
+    pub keep_layout: bool,
+    /// The theme's name in COSMIC; see `Options::name`.
+    pub name: Option<String>,
     pub config: PathBuf,
     pub data: PathBuf,
 }
@@ -479,6 +508,8 @@ impl InstallOpts {
             frosted: "auto".into(),
             frost_on: None,
             apply: true,
+            keep_layout: false,
+            name: None,
             config: PathBuf::new(),
             data: PathBuf::new(),
         }
@@ -525,7 +556,8 @@ impl InstallOpts {
             ),
         };
         o.density = current_density(&self.config);
-        o.keep = current_keep(&builder(dark), &builder(!dark));
+        o.keep = current_keep(&builder(dark), &builder(!dark), self.keep_layout);
+        o.name.clone_from(&self.name);
         validate(&o)?;
         Ok(o)
     }
