@@ -37,6 +37,20 @@ jobs:
             }
           done
 
+  gui:
+    name: ctp-cosmic-gui (Rust)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          components: clippy
+      - name: Clippy
+        run: cargo clippy --locked -p ctp-cosmic-gui --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --locked -p ctp-cosmic-gui
+
   advisories:
     name: Dependency advisories
     runs-on: ubuntu-24.04

@@ -5,7 +5,8 @@
 #   curl -fsSL https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases/latest/download/install.sh | bash
 #
 # Downloads ctp-cosmic for this machine, checks it against the release's
-# SHA256SUMS, puts it in ~/.local/bin and runs `ctp-cosmic apply`. Everything
+# SHA256SUMS, puts it in ~/.local/bin and runs `ctp-cosmic apply`. The graphical
+# app (ctp-cosmic-gui, with its launcher entry) goes next to it. Everything
 # after the first install is ctp-cosmic itself:
 #
 #   ctp-cosmic            change flavor, accent or steps (interactive)
@@ -19,6 +20,7 @@
 #   CATPPUCCIN_SETUP_VERSION=v0.4.0    install a specific release (default: latest)
 #   CATPPUCCIN_SETUP_BINARY=file       install this binary instead of downloading
 #   CATPPUCCIN_SETUP_BINDIR=dir        where to put it (default: ~/.local/bin)
+#   CATPPUCCIN_SETUP_GUI=0             do not install the graphical app
 #   CATPPUCCIN_SETUP_SHA256=hash       require the binary to have this SHA-256
 #                                      (take it from a source you trust; the
 #                                      release's SHA256SUMS only catches a
@@ -37,13 +39,33 @@ main() {
     local repo=Lucas-BRT/catppuccin-cosmic-setup
     local version=${CATPPUCCIN_SETUP_VERSION:-latest}
     local bindir=${CATPPUCCIN_SETUP_BINDIR:-$HOME/.local/bin}
-    local arch asset base src sum
+    local arch asset base='' src sum data id gui
 
     local on='' off=''
     if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then on=$'\e[38;2;203;166;247m'; off=$'\e[0m'; fi
     say() { printf '%s==>%s %s\n' "$on" "$off" "$*"; }
     warn() { printf 'warning: %s\n' "$*" >&2; }
     die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+    # Signed build provenance (GitHub artifact attestation): proves the file
+    # was built by this repository's release workflow.
+    verify_provenance() {
+        if command -v gh >/dev/null; then
+            if gh attestation verify "$1" --repo "$repo" >/dev/null 2>&1; then
+                say "Provenance verified (gh attestation)"
+            elif [ "${CATPPUCCIN_SETUP_VERIFY:-0}" = 1 ]; then
+                die "no valid provenance attestation for $(basename "$1")"
+            else
+                warn "could not verify the provenance attestation (older release, or gh is not signed in); continuing with the checksum only"
+            fi
+        elif [ "${CATPPUCCIN_SETUP_VERIFY:-0}" = 1 ]; then
+            die "CATPPUCCIN_SETUP_VERIFY=1 needs the gh CLI"
+        fi
+    }
+    # fetch FILE: download a release file and check it against SHA256SUMS.
+    fetch() {
+        curl -fsSL --retry 3 --proto '=https' --tlsv1.2 -o "$tmp/$1" "$base/$1" &&
+            (cd "$tmp" && grep " $1\$" SHA256SUMS | sha256sum -c --status)
+    }
 
     [ "$(id -u)" -ne 0 ] || die "do not run this as root: it configures your own user's desktop (no sudo needed)"
     [ "$(uname -s)" = Linux ] || die "this setup is for Linux (Pop!_OS with COSMIC)"
@@ -85,19 +107,7 @@ main() {
         [ "${sum%% *}" = "$CATPPUCCIN_SETUP_SHA256" ] || die "binary does not match CATPPUCCIN_SETUP_SHA256"
     fi
 
-    # Signed build provenance (GitHub artifact attestation): proves the file
-    # was built by this repository's release workflow.
-    if command -v gh >/dev/null; then
-        if gh attestation verify "$src" --repo "$repo" >/dev/null 2>&1; then
-            say "Provenance verified (gh attestation)"
-        elif [ "${CATPPUCCIN_SETUP_VERIFY:-0}" = 1 ]; then
-            die "no valid provenance attestation for $(basename "$src")"
-        else
-            warn "could not verify the provenance attestation (older release, or gh is not signed in); continuing with the checksum only"
-        fi
-    elif [ "${CATPPUCCIN_SETUP_VERIFY:-0}" = 1 ]; then
-        die "CATPPUCCIN_SETUP_VERIFY=1 needs the gh CLI"
-    fi
+    verify_provenance "$src"
 
     # Copy to a temporary name and rename, so a running ctp-cosmic is not
     # overwritten in place.
@@ -109,6 +119,23 @@ main() {
         *":$bindir:"*) ;;
         *) say "$bindir is not in your PATH; add it to run ctp-cosmic by name" ;;
     esac
+
+    # The graphical app: not fatal, an older release does not have it.
+    if [ -n "$base" ] && [ "${CATPPUCCIN_SETUP_GUI:-1}" != 0 ]; then
+        id=io.github.Lucas_BRT.CtpCosmic
+        gui="ctp-cosmic-gui-$arch-linux"
+        data=${XDG_DATA_HOME:-$HOME/.local/share}
+        if fetch "$gui" && fetch "$id.desktop" && fetch "$id.svg"; then
+            verify_provenance "$tmp/$gui"
+            install -m 755 "$tmp/$gui" "$bindir/.ctp-cosmic-gui.part"
+            mv -f "$bindir/.ctp-cosmic-gui.part" "$bindir/ctp-cosmic-gui"
+            install -Dm 644 "$tmp/$id.desktop" "$data/applications/$id.desktop"
+            install -Dm 644 "$tmp/$id.svg" "$data/icons/hicolor/scalable/apps/$id.svg"
+            say "Installed $bindir/ctp-cosmic-gui (open it with: ctp-cosmic gui)"
+        else
+            warn "this release has no graphical app for $arch; skipping it"
+        fi
+    fi
 
     "$bindir/ctp-cosmic" apply "$@" </dev/null
 

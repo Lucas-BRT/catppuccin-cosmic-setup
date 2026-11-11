@@ -11,12 +11,20 @@ const USAGE: &str = "\
 ctp-cosmic update: install the latest release over this binary
 
 Usage:
-  ctp-cosmic update [--check] [--force] [--apply]
+  ctp-cosmic update [--check] [--force] [--apply] [--gui]
 
 --check   only say whether a newer release exists
 --force   reinstall even if this is already the latest
 --apply   afterwards, repeat your last choices (ctp-cosmic apply --last)
+--gui     only install or update the graphical app (ctp-cosmic-gui), next to
+          this binary, with its launcher entry
+
+The graphical app is updated too when it is installed next to this binary.
 ";
+
+const GUI: &str = "ctp-cosmic-gui";
+/// The launcher entry and icon of the app, as the release names them.
+const APP_ID: &str = "io.github.Lucas_BRT.CtpCosmic";
 
 /// "v0.4.1" or "0.4.1-dev" as (0, 4, 1).
 fn parse_version(s: &str) -> Option<(u32, u32, u32)> {
@@ -72,49 +80,24 @@ fn sha256(path: &Path) -> Result<String, String> {
         .ok_or_else(|| "sha256sum printed nothing".to_string())
 }
 
-pub fn main(args: Vec<String>) -> Result<u8, String> {
-    let (mut check, mut force, mut apply) = (false, false, false);
-    for a in &args {
-        match a.as_str() {
-            "-h" | "--help" => {
-                print!("{USAGE}");
-                return Ok(0);
-            }
-            "--check" => check = true,
-            "--force" => force = true,
-            "--apply" => apply = true,
-            other => return Err(format!("unexpected argument '{other}'\n\n{USAGE}")),
-        }
-    }
-    let current = env!("CARGO_PKG_VERSION");
-    let tag = latest_tag()?;
-    let newer = parse_version(&tag) > parse_version(current);
-    if !newer && !force {
-        println!("ctp-cosmic {current} is up to date (latest release: {tag})");
-        return Ok(0);
-    }
-    if check {
-        println!("ctp-cosmic {tag} is available (you have {current}): ctp-cosmic update");
-        return Ok(0);
-    }
-
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    if exe.components().any(|c| c.as_os_str() == "target") {
-        return Err(
-            "this is a cargo build, not an installed binary; update replaces the installed one"
-                .into(),
-        );
-    }
-    let arch = std::env::consts::ARCH;
-    let asset = format!("ctp-cosmic-{arch}-linux");
-    let base = format!("https://github.com/{REPO}/releases/download/{tag}");
-    let sums = String::from_utf8_lossy(&curl(&[&format!("{base}/SHA256SUMS")])?).into_owned();
+/// Downloads `asset` from the release at `base`, checks it against `sums`
+/// and puts it in place of `dest` (next to it first, so the rename stays on
+/// one filesystem and a running program is never overwritten in place).
+fn replace(
+    base: &str,
+    sums: &str,
+    asset: &str,
+    tag: &str,
+    dest: &Path,
+    mode: u32,
+) -> Result<(), String> {
     let want =
-        hash_for(&sums, &asset).ok_or_else(|| format!("{asset} is not in {tag}'s SHA256SUMS"))?;
-
-    // Next to the binary, so the final rename stays on one filesystem and a
-    // running ctp-cosmic is never overwritten in place.
-    let part = exe.with_file_name(".ctp-cosmic.part");
+        hash_for(sums, asset).ok_or_else(|| format!("{asset} is not in {tag}'s SHA256SUMS"))?;
+    if let Some(dir) = dest.parent() {
+        fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    }
+    let name = dest.file_name().unwrap_or_default().to_string_lossy();
+    let part = dest.with_file_name(format!(".{name}.part"));
     let fetched = curl(&[
         "-o",
         &part.display().to_string(),
@@ -133,9 +116,92 @@ pub fn main(args: Vec<String>) -> Result<u8, String> {
         let _ = fs::remove_file(&part);
         return Err(e);
     }
-    fs::set_permissions(&part, fs::Permissions::from_mode(0o755)).map_err(|e| e.to_string())?;
-    fs::rename(&part, &exe).map_err(|e| format!("{}: {e}", exe.display()))?;
-    println!("ctp-cosmic {current} -> {tag}");
+    fs::set_permissions(&part, fs::Permissions::from_mode(mode)).map_err(|e| e.to_string())?;
+    fs::rename(&part, dest).map_err(|e| format!("{}: {e}", dest.display()))
+}
+
+/// Installs or updates the graphical app next to `exe`; with `fresh`, its
+/// launcher entry and icon too. A release without the app is only mentioned.
+fn update_gui(base: &str, sums: &str, tag: &str, exe: &Path, fresh: bool) -> Result<(), String> {
+    let asset = format!("{GUI}-{}-linux", std::env::consts::ARCH);
+    if hash_for(sums, &asset).is_none() {
+        println!("{tag} has no graphical app for this machine");
+        return Ok(());
+    }
+    replace(base, sums, &asset, tag, &exe.with_file_name(GUI), 0o755)?;
+    println!("{GUI} -> {tag}");
+    if fresh {
+        let data = std::env::var_os("XDG_DATA_HOME")
+            .map(std::path::PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".local/share"))
+            })
+            .ok_or("HOME not set")?;
+        for (file, dir) in [
+            (format!("{APP_ID}.desktop"), "applications"),
+            (format!("{APP_ID}.svg"), "icons/hicolor/scalable/apps"),
+        ] {
+            replace(base, sums, &file, tag, &data.join(dir).join(&file), 0o644)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn main(args: Vec<String>) -> Result<u8, String> {
+    let (mut check, mut force, mut apply, mut gui_only) = (false, false, false, false);
+    for a in &args {
+        match a.as_str() {
+            "-h" | "--help" => {
+                print!("{USAGE}");
+                return Ok(0);
+            }
+            "--check" => check = true,
+            "--force" => force = true,
+            "--apply" => apply = true,
+            "--gui" => gui_only = true,
+            other => return Err(format!("unexpected argument '{other}'\n\n{USAGE}")),
+        }
+    }
+    let current = env!("CARGO_PKG_VERSION");
+    let tag = latest_tag()?;
+    let newer = parse_version(&tag) > parse_version(current);
+    if !gui_only && !newer && !force {
+        println!("ctp-cosmic {current} is up to date (latest release: {tag})");
+        return Ok(0);
+    }
+    if check {
+        println!("ctp-cosmic {tag} is available (you have {current}): ctp-cosmic update");
+        return Ok(0);
+    }
+
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    if exe.components().any(|c| c.as_os_str() == "target") {
+        return Err(
+            "this is a cargo build, not an installed binary; update replaces the installed one"
+                .into(),
+        );
+    }
+    let arch = std::env::consts::ARCH;
+    let base = format!("https://github.com/{REPO}/releases/download/{tag}");
+    let sums = String::from_utf8_lossy(&curl(&[&format!("{base}/SHA256SUMS")])?).into_owned();
+    if !gui_only {
+        replace(
+            &base,
+            &sums,
+            &format!("ctp-cosmic-{arch}-linux"),
+            &tag,
+            &exe,
+            0o755,
+        )?;
+        println!("ctp-cosmic {current} -> {tag}");
+    }
+    let installed = exe.with_file_name(GUI).is_file();
+    if gui_only || installed {
+        update_gui(&base, &sums, &tag, &exe, gui_only && !installed)?;
+    }
+    if gui_only {
+        return Ok(0);
+    }
 
     if apply {
         let status = Command::new(&exe)

@@ -54,11 +54,11 @@ Every release binary carries a signed provenance attestation:
 ## Graphical app
 
 `ctp-cosmic gui` opens a libcosmic app: pick the flavor and accent and see
-every wallpaper style rendered live in those colors, then apply the theme and
-the chosen wallpaper. It is a separate program, not part of the release yet;
-build and install it from a clone with `just build-gui` and `just install` in
-`gui/` (needs the libcosmic build dependencies, see
-[cosmic-app-template](https://github.com/pop-os/cosmic-app-template)).
+every wallpaper style rendered live in those colors, then apply the look to
+the Dark or the Light mode. The installer puts it next to `ctp-cosmic`
+(`CATPPUCCIN_SETUP_GUI=0` skips it); `ctp-cosmic update --gui` installs or
+updates it later. It needs `libxkbcommon`, which COSMIC already has. To build
+it from a clone: `just build-gui`, then `just install` in `gui/`.
 
 ## What it sets up
 

@@ -49,7 +49,7 @@ fn gui(args: Vec<String>) -> Result<u8, String> {
         .args(args)
         .exec();
     Err(if err.kind() == std::io::ErrorKind::NotFound {
-        format!("{NAME} is not installed; build it with `just install` in gui/ of the repository")
+        format!("{NAME} is not installed; install it with `ctp-cosmic update --gui`")
     } else {
         format!("{NAME}: {err}")
     })

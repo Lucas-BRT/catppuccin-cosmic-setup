@@ -5,6 +5,13 @@ also get notes generated from their commits on the releases page.
 
 ## [Unreleased]
 
+### Added
+- `ctp-cosmic-gui` is part of the release (x86_64 and aarch64, with its
+  launcher entry and icon). `install.sh` installs it next to `ctp-cosmic`
+  (`CATPPUCCIN_SETUP_GUI=0` skips it), `ctp-cosmic update` keeps it up to date
+  and `ctp-cosmic update --gui` installs it for an existing install.
+- CI builds, lints and tests the app.
+
 ## [0.9.0] - 2026-11-11
 
 ### Added

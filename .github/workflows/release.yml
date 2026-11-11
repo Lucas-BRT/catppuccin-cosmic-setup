@@ -3,8 +3,9 @@ name: Release
 # To release:
 #   bump the version in Cargo.toml, then
 #   git tag vX.Y.Z && git push origin vX.Y.Z
-# This builds static ctp-cosmic binaries (x86_64, aarch64) and publishes them
-# with install.sh and a SHA256SUMS file as the latest release, which is what
+# This builds static ctp-cosmic binaries and the ctp-cosmic-gui app (x86_64,
+# aarch64; the app needs libxkbcommon at run time) and publishes them with
+# the app's launcher entry and icon, install.sh and a SHA256SUMS file as the latest release, which is what
 #   curl -fsSL .../releases/latest/download/install.sh | bash
 # installs and what `ctp-cosmic update` downloads. The binaries carry a signed
 # provenance attestation; check one with
@@ -60,9 +61,49 @@ jobs:
           name: release-${{ matrix.arch }}
           path: dist/
 
+  build-gui:
+    name: Build the app ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - { arch: x86_64, os: ubuntu-24.04 }
+          - { arch: aarch64, os: ubuntu-24.04-arm }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - name: Test
+        run: cargo test --release --locked -p ctp-cosmic-gui
+      - name: Build
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          cargo build --release --locked -p ctp-cosmic-gui
+          mkdir dist
+          cp target/release/ctp-cosmic-gui "dist/ctp-cosmic-gui-$ARCH-linux"
+          # The launcher entry and icon are the same for every machine.
+          if [ "$ARCH" = x86_64 ]; then
+            cp gui/target/xdgen/app.desktop dist/io.github.Lucas_BRT.CtpCosmic.desktop
+            cp gui/resources/icons/hicolor/scalable/apps/icon.svg dist/io.github.Lucas_BRT.CtpCosmic.svg
+          fi
+      - name: Smoke test
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          bin="dist/ctp-cosmic-gui-$ARCH-linux"
+          file "$bin"
+          # Only system libraries it needs at run time may be missing on a desktop.
+          ldd "$bin"
+          ! ldd "$bin" | grep "not found"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-gui-${{ matrix.arch }}
+          path: dist/
+
   release:
     name: Publish release
-    needs: build
+    needs: [build, build-gui]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -86,7 +127,7 @@ jobs:
         run: |
           cp install.sh dist/
           cd dist
-          sha256sum ctp-cosmic-* install.sh > SHA256SUMS
+          sha256sum ctp-cosmic-* io.github.* install.sh > SHA256SUMS
           cat SHA256SUMS
           gh release create "$TAG" --repo "$REPO" --title "$TAG" --latest --generate-notes \
             --notes "Install with:
@@ -94,4 +135,4 @@ jobs:
           \`\`\`bash
           curl -fsSL https://github.com/$REPO/releases/latest/download/install.sh | bash
           \`\`\`" \
-            ctp-cosmic-* install.sh SHA256SUMS
+            ctp-cosmic-* io.github.* install.sh SHA256SUMS
