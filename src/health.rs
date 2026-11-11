@@ -219,7 +219,13 @@ pub fn check(o: &Opts, home: &Path) -> Vec<Line> {
                 } else {
                     "Papirus-Catppuccin"
                 };
-                let now = read(&cosmic.join("com.system76.CosmicTk/v1/icon_theme"));
+                let mode = if p.is_dark() { "Dark" } else { "Light" };
+                let mut now = read(&cosmic.join(format!(
+                    "com.system76.CosmicTheme.{mode}/v2/icon_theme"
+                )));
+                if now.is_empty() {
+                    now = read(&cosmic.join("com.system76.CosmicTk/v1/icon_theme"));
+                }
                 // Without COSMIC's own icons the step selects plain Papirus.
                 let ok = now.contains(want) || now.contains(want.trim_end_matches("-Catppuccin"));
                 line(ok, format!("icons: {want}"))

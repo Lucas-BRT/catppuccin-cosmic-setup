@@ -113,6 +113,9 @@ pub struct Options {
     pub gaps: (i64, i64),
     pub active_hint: i64,
     pub density: String,
+    /// Raw RON of the theme-owned settings COSMIC 1.11 keeps in the builder
+    /// (`font`, `mono_font`, `icon_theme`), so a re-import does not reset them.
+    pub keep: Vec<(String, String)>,
 }
 
 impl Default for Options {
@@ -128,6 +131,7 @@ impl Default for Options {
             gaps: (0, 8),
             active_hint: 3,
             density: "standard".into(),
+            keep: Vec::new(),
         }
     }
 }
@@ -224,6 +228,9 @@ pub fn build(o: &Options) -> String {
         .expect("validated blur")
         .0;
     l.push(format!("    frosted: {blur_name},"));
+    for (key, text) in &o.keep {
+        l.push(format!("    {key}: {text},"));
+    }
     l.push(format!("    gaps: ({}, {}),", o.gaps.0, o.gaps.1));
     l.push(format!("    active_hint: {},", o.active_hint));
     // Active window outline.
@@ -376,6 +383,26 @@ fn current_frost(builder: &Path) -> Option<(String, Vec<String>)> {
     Some((strength.to_string(), on))
 }
 
+/// Settings the builder keeps since COSMIC 1.11, as COSMIC stores them.
+const KEEP_KEYS: [&str; 3] = ["font", "mono_font", "icon_theme"];
+
+/// The current value of each KEEP_KEYS setting: this mode's builder first,
+/// then the other mode's. shortcut: the text is trusted as COSMIC wrote it;
+/// a hand-broken file makes the import fail, not corrupt anything.
+fn current_keep(this: &Path, other: &Path) -> Vec<(String, String)> {
+    KEEP_KEYS
+        .iter()
+        .filter_map(|k| {
+            [this, other]
+                .iter()
+                .filter_map(|d| std::fs::read_to_string(d.join(k)).ok())
+                .map(|v| v.trim().to_string())
+                .find(|v| !v.is_empty())
+                .map(|v| (k.to_string(), v))
+        })
+        .collect()
+}
+
 /// The interface density set under Appearance (the theme carries its spacing).
 fn current_density(config: &Path) -> String {
     std::fs::read_to_string(config.join("com.system76.CosmicTk/v1/interface_density"))
@@ -498,6 +525,7 @@ impl InstallOpts {
             ),
         };
         o.density = current_density(&self.config);
+        o.keep = current_keep(&builder(dark), &builder(!dark));
         validate(&o)?;
         Ok(o)
     }
@@ -710,6 +738,30 @@ mod tests {
     }
 
     #[test]
+    fn install_keeps_font_and_icon_theme() {
+        let dir = std::env::temp_dir().join(format!("ctp-keep-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let builder = dir.join("cfg/com.system76.CosmicTheme.Dark.Builder/v2");
+        std::fs::create_dir_all(&builder).unwrap();
+        std::fs::write(builder.join("icon_theme"), "\"Papirus-Dark\"").unwrap();
+        std::fs::write(
+            builder.join("font"),
+            "(\n    family: \"Inter\",\n    weight: Normal,\n    stretch: Normal,\n    style: Normal,\n)",
+        )
+        .unwrap();
+        let mut i = InstallOpts::new("mocha", "mauve");
+        i.apply = false;
+        i.config = dir.join("cfg");
+        i.data = dir.join("out");
+        let (_, theme) = install_theme(&i).unwrap();
+        let text = std::fs::read_to_string(theme).unwrap();
+        assert!(text.contains("icon_theme: \"Papirus-Dark\","));
+        assert!(text.contains("family: \"Inter\""));
+        assert!(!text.contains("mono_font"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn install_keeps_frost_and_density_and_skips_apply() {
         let dir = std::env::temp_dir().join(format!("ctp-inst-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -791,7 +843,8 @@ mod tests {
     /// commit used by cosmic-settings 1.10) and keep what we put in it.
     #[test]
     fn cosmic_parses_every_theme() {
-        for o in all_variants() {
+        for mut o in all_variants() {
+            o.keep = vec![("icon_theme".into(), "\"Papirus\"".into())];
             let text = build(&o);
             let b: ThemeBuilder = ron::de::from_str(&text)
                 .unwrap_or_else(|e| panic!("{}/{}: {e}", o.flavor, o.accent));
@@ -812,6 +865,7 @@ mod tests {
                 cosmic_theme::Density::Spacious => "spacious",
             };
             assert_eq!(density, o.density);
+            assert_eq!(b.icon_theme, "Papirus");
             let theme = b.build();
             let accent = Palette::new(&o.flavor).unwrap().get(&o.accent);
             let got = theme.accent_color();
@@ -823,6 +877,17 @@ mod tests {
                     o.accent
                 );
             }
+        }
+    }
+
+    /// COSMIC 1.10 must still read what the 1.11 format adds.
+    #[test]
+    fn cosmic_110_parses_every_theme() {
+        for mut o in all_variants() {
+            o.keep = vec![("icon_theme".into(), "\"Papirus\"".into())];
+            let b: cosmic_theme_110::ThemeBuilder = ron::de::from_str(&build(&o))
+                .unwrap_or_else(|e| panic!("{}/{}: {e}", o.flavor, o.accent));
+            assert_eq!(b.palette.is_dark(), o.flavor != "latte");
         }
     }
 

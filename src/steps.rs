@@ -58,7 +58,13 @@ pub const STEPS: [Step; 7] = [
         name: "icons",
         label: "Papirus icons (optional)",
         optional: true,
-        paths: &[".config/cosmic/com.system76.CosmicTk/v1/icon_theme"],
+        paths: &[
+            ".config/cosmic/com.system76.CosmicTk/v1/icon_theme",
+            ".config/cosmic/com.system76.CosmicTheme.Dark/v2/icon_theme",
+            ".config/cosmic/com.system76.CosmicTheme.Dark.Builder/v2/icon_theme",
+            ".config/cosmic/com.system76.CosmicTheme.Light/v2/icon_theme",
+            ".config/cosmic/com.system76.CosmicTheme.Light.Builder/v2/icon_theme",
+        ],
     },
 ];
 

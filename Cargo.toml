@@ -26,8 +26,10 @@ toml = "1.2.1"
 
 [dev-dependencies]
 # Only for tests: the generated themes are parsed with COSMIC's own
-# ThemeBuilder, at the libcosmic commit used by cosmic-settings 1.10.
-cosmic-theme = { git = "https://github.com/pop-os/libcosmic", rev = "5a8bd9482a35ae94c1e54edf77b331c6b970f170", default-features = false }
+# ThemeBuilder, at the libcosmic commit of cosmic-settings 1.11 (build
+# 6aaf30d, with font, mono_font and icon_theme in the theme) and of 1.10.
+cosmic-theme = { git = "https://github.com/pop-os/libcosmic", rev = "dd108aa99d7306110eef06da43eafc109e1ab151", default-features = false }
+cosmic-theme-110 = { package = "cosmic-theme", git = "https://github.com/pop-os/libcosmic", rev = "5a8bd9482a35ae94c1e54edf77b331c6b970f170", default-features = false }
 
 [profile.release]
 lto = true

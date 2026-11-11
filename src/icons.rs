@@ -261,12 +261,29 @@ pub fn apply(flavor: &str, accent: &str, p: &Paths) -> Result<String, String> {
         }
     };
 
+    // COSMIC 1.10 keeps the icon theme in the toolkit config; newer builds
+    // keep it per theme (and per builder), so write both.
+    let value = format!("\"{theme}\"");
     let key = p.config.join("com.system76.CosmicTk/v1/icon_theme");
     if let Some(parent) = key.parent() {
         io(fs::create_dir_all(parent), parent)?;
     }
-    io(fs::write(&key, format!("\"{theme}\"")), &key)?;
+    io(fs::write(&key, &value), &key)?;
+    for dir in theme_dirs(&p.config) {
+        let key = dir.join("icon_theme");
+        io(fs::write(&key, &value), &key)?;
+    }
     Ok(theme)
+}
+
+/// The per-theme config dirs of newer COSMIC that already exist; a dir that
+/// is not there yet has never been themed, and a lone key would half-fill it.
+pub fn theme_dirs(config: &Path) -> Vec<PathBuf> {
+    ["Dark", "Dark.Builder", "Light", "Light.Builder"]
+        .iter()
+        .map(|n| config.join(format!("com.system76.CosmicTheme.{n}/v2")))
+        .filter(|d| d.is_dir())
+        .collect()
 }
 
 pub fn main(args: Vec<String>) -> Result<(), String> {
