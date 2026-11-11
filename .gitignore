@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 /target/
 /bin/
+/gui/target/

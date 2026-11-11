@@ -70,6 +70,7 @@ impl Rng {
         r.next();
         r
     }
+    #[allow(clippy::should_implement_trait)] // not an Iterator: it never ends
     pub fn next(&mut self) -> u64 {
         self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
         let mut z = self.0;

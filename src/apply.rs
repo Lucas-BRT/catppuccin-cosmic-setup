@@ -652,7 +652,13 @@ fn step_wallpaper(o: &Opts) -> Result<(), String> {
         let file = pictures.join(format!("catppuccin-{}-{}-{stem}.png", o.flavor, o.accent));
         fs::create_dir_all(&pictures).map_err(|e| format!("{}: {e}", pictures.display()))?;
         wallpaper::recolor(Path::new(img), &file, &o.flavor, 40.0)?;
-        background::set(&config, &file.display().to_string(), None, dark, Some(&slug))?;
+        background::set(
+            &config,
+            &file.display().to_string(),
+            None,
+            dark,
+            Some(&slug),
+        )?;
         ui::ok(&format!("Background: {}", file.display()));
         return Ok(());
     }
@@ -670,7 +676,13 @@ fn step_wallpaper(o: &Opts) -> Result<(), String> {
         let file = pictures.join(format!("catppuccin-{}-{}{suffix}.png", o.flavor, o.accent));
         fs::create_dir_all(&pictures).map_err(|e| format!("{}: {e}", pictures.display()))?;
         wallpaper::render_to(&file, &o.style, &o.flavor, &o.accent)?;
-        background::set(&config, &file.display().to_string(), None, dark, Some(&slug))?;
+        background::set(
+            &config,
+            &file.display().to_string(),
+            None,
+            dark,
+            Some(&slug),
+        )?;
         ui::ok(&format!("Background: {}", file.display()));
         return Ok(());
     }

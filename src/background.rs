@@ -136,8 +136,15 @@ mod tests {
         assert!(!dir.join("com.system76.CosmicSettings.Wallpaper").exists());
         // The mode COSMIC shows, but not the other one.
         let dark = dir.join("com.system76.CosmicBackground.Dark/v1");
-        assert!(fs::read_to_string(dark.join("all")).unwrap().contains("a \\\"b"));
-        assert!(dir.join("com.system76.CosmicBackground.Dark/v1/base").is_file());
+        assert!(
+            fs::read_to_string(dark.join("all"))
+                .unwrap()
+                .contains("a \\\"b")
+        );
+        assert!(
+            dir.join("com.system76.CosmicBackground.Dark/v1/base")
+                .is_file()
+        );
         assert!(!dir.join("com.system76.CosmicBackground.Light").exists());
 
         set(&dir, "/pics", Some(1800), true, None).unwrap();
@@ -158,11 +165,21 @@ mod tests {
         let b = dir.join("com.system76.CosmicThemeBundle.catppuccin-latte-blue.Background/v1");
         fs::create_dir_all(&b).unwrap();
         set(&dir, "/x.png", None, false, Some("catppuccin-latte-blue")).unwrap();
-        assert!(fs::read_to_string(b.join("all")).unwrap().contains("/x.png"));
-        assert!(dir.join("com.system76.CosmicBackground.Light/v1/all").is_file());
+        assert!(
+            fs::read_to_string(b.join("all"))
+                .unwrap()
+                .contains("/x.png")
+        );
+        assert!(
+            dir.join("com.system76.CosmicBackground.Light/v1/all")
+                .is_file()
+        );
         // A bundle that does not exist is not created.
         set(&dir, "/x.png", None, false, Some("nope")).unwrap();
-        assert!(!dir.join("com.system76.CosmicThemeBundle.nope.Background").exists());
+        assert!(
+            !dir.join("com.system76.CosmicThemeBundle.nope.Background")
+                .exists()
+        );
         fs::remove_dir_all(&dir).unwrap();
     }
 

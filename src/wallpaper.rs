@@ -135,15 +135,19 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Option<Args>, St
     Ok(Some(a))
 }
 
-pub(crate) fn render_one(
-    style: &str,
-    flavor: &str,
-    accent: &str,
-    (w, h): (usize, usize),
-) -> Vec<u8> {
+pub fn render_one(style: &str, flavor: &str, accent: &str, (w, h): (usize, usize)) -> Vec<u8> {
     let p = Palette::new(flavor).expect("validated flavor");
     let pixel = styles::build(style, p, accent, w, h).expect("validated style");
     image::render(w, h, &pixel)
+}
+
+/// A small picture of every style, in `styles::list()` order, rendered in
+/// parallel: (name, RGB pixels).
+pub fn thumbnails(flavor: &str, accent: &str, size: (usize, usize)) -> Vec<(String, Vec<u8>)> {
+    styles::list()
+        .par_iter()
+        .map(|(name, _)| (name.to_string(), render_one(name, flavor, accent, size)))
+        .collect()
 }
 
 /// Names the code that draws the pictures: the version plus a hash of its

@@ -51,6 +51,15 @@ Every release binary carries a signed provenance attestation:
 (`install.sh` runs it by itself when `gh` is installed;
 `CATPPUCCIN_SETUP_VERIFY=1` makes a failure fatal).
 
+## Graphical app
+
+`ctp-cosmic gui` opens a libcosmic app: pick the flavor and accent and see
+every wallpaper style rendered live in those colors, then apply the theme and
+the chosen wallpaper. It is a separate program, not part of the release yet;
+build and install it from a clone with `just build-gui` and `just install` in
+`gui/` (needs the libcosmic build dependencies, see
+[cosmic-app-template](https://github.com/pop-os/cosmic-app-template)).
+
 ## What it sets up
 
 - **Desktop theme** with Frosted Glass support

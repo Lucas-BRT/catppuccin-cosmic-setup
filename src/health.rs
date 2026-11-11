@@ -220,9 +220,8 @@ pub fn check(o: &Opts, home: &Path) -> Vec<Line> {
                     "Papirus-Catppuccin"
                 };
                 let mode = if p.is_dark() { "Dark" } else { "Light" };
-                let mut now = read(&cosmic.join(format!(
-                    "com.system76.CosmicTheme.{mode}/v2/icon_theme"
-                )));
+                let mut now =
+                    read(&cosmic.join(format!("com.system76.CosmicTheme.{mode}/v2/icon_theme")));
                 if now.is_empty() {
                     now = read(&cosmic.join("com.system76.CosmicTk/v1/icon_theme"));
                 }
@@ -249,9 +248,8 @@ pub fn check(o: &Opts, home: &Path) -> Vec<Line> {
             "wallpaper" => {
                 // Newer COSMIC shows the wallpaper of the current mode.
                 let mode = if p.is_dark() { "Dark" } else { "Light" };
-                let mut all = read(&cosmic.join(format!(
-                    "com.system76.CosmicBackground.{mode}/v1/all"
-                )));
+                let mut all =
+                    read(&cosmic.join(format!("com.system76.CosmicBackground.{mode}/v1/all")));
                 if all.is_empty() {
                     all = read(&cosmic.join("com.system76.CosmicBackground/v1/all"));
                 }

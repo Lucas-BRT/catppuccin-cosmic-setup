@@ -4,36 +4,12 @@
 //! (for the shell scripts), desktop themes in the COSMIC 1.10 format, and
 //! procedural wallpapers. Colors come from the official `catppuccin` crate.
 
-mod apply;
-mod apps;
-mod background;
-mod backup;
-mod completions;
-mod folders;
-mod gtk;
-mod health;
-mod icons;
-mod image;
-mod math_styles;
-mod nerdfont;
-mod noise;
-mod palette;
-mod profiles;
-mod prompt;
-mod safety;
-mod seeded_styles;
-mod steps;
-mod styles;
-mod terminal;
-mod theme;
-mod tui;
-mod ui;
-mod uninstall;
-mod update;
-mod wallpaper;
-mod zed;
-
 use std::process::ExitCode;
+
+use ctp_cosmic::{
+    apply, apps, background, backup, completions, folders, health, icons, palette, profiles,
+    prompt, terminal, theme, tui, uninstall, update, wallpaper, zed,
+};
 
 const USAGE: &str = "\
 ctp-cosmic: Catppuccin for the COSMIC desktop
@@ -52,12 +28,32 @@ Usage:
   ctp-cosmic wallpaper ...                   procedural wallpapers
   ctp-cosmic terminal ...                    COSMIC Terminal color schemes and font
   ctp-cosmic palette ...                     palette lookups
+  ctp-cosmic gui                             the graphical app (ctp-cosmic-gui)
   ctp-cosmic --version
 
 The pieces apply is made of are commands too: backup, background, icons,
 prompt, register-wallpaper-folder, zed.
 Run `ctp-cosmic <command> --help` for each command's options.
 ";
+
+/// Replaces this process with `ctp-cosmic-gui`: the one next to this binary,
+/// else the one on PATH. It is a separate program (it needs libcosmic).
+fn gui(args: Vec<String>) -> Result<u8, String> {
+    use std::os::unix::process::CommandExt;
+    const NAME: &str = "ctp-cosmic-gui";
+    let beside = std::env::current_exe()
+        .ok()
+        .and_then(|exe| Some(exe.parent()?.join(NAME)))
+        .filter(|p| p.is_file());
+    let err = std::process::Command::new(beside.as_deref().unwrap_or(NAME.as_ref()))
+        .args(args)
+        .exec();
+    Err(if err.kind() == std::io::ErrorKind::NotFound {
+        format!("{NAME} is not installed; build it with `just install` in gui/ of the repository")
+    } else {
+        format!("{NAME}: {err}")
+    })
+}
 
 fn main() -> ExitCode {
     let mut args = std::env::args().skip(1);
@@ -83,6 +79,7 @@ fn main() -> ExitCode {
         "zed" => zed::main(rest).map(|()| 0),
         "app" => apps::main(rest),
         "tui" => tui::main(rest),
+        "gui" => gui(rest),
         "-V" | "--version" => {
             println!("ctp-cosmic {}", env!("CARGO_PKG_VERSION"));
             Ok(0)
