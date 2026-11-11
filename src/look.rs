@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use crate::theme::{self, InstallOpts};
 use crate::{background, palette, wallpaper};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Look {
     pub flavor: String,
     pub accent: String,
@@ -95,31 +95,43 @@ pub fn bundle_slug(config: &Path, name: &str) -> Option<String> {
         })
 }
 
-/// Renders the wallpaper, imports the theme under the look's name (COSMIC
-/// saves it as a theme and makes it the live one for its mode) and sets the
-/// wallpaper for that mode, in the saved theme too. COSMIC's own gaps, corner
-/// style, fonts, icons, density and Frosted Glass are kept. `import` off only
-/// writes the files.
-pub fn apply(look: &Look, dirs: &Dirs, import: bool) -> Result<(), String> {
+/// Fails on a bad flavor, accent or style before anything is changed.
+pub fn check(look: &Look) -> Result<(), String> {
     palette::check(&look.flavor, Some(&look.accent))?;
     if !crate::styles::list().iter().any(|(n, _)| *n == look.style) {
         return Err(format!("unknown style '{}'", look.style));
     }
+    Ok(())
+}
+
+/// Step 1 of applying: renders the wallpaper file.
+pub fn render_wallpaper(look: &Look, dirs: &Dirs) -> Result<PathBuf, String> {
+    check(look)?;
     std::fs::create_dir_all(&dirs.pictures)
         .map_err(|e| format!("{}: {e}", dirs.pictures.display()))?;
     let png = look.wallpaper(&dirs.pictures);
     wallpaper::render_to(&png, &look.style, &look.flavor, &look.accent)?;
+    Ok(png)
+}
 
-    let name = look.name();
+/// Step 2: imports the theme under the look's name. COSMIC saves it as a
+/// theme and makes it the live one for its mode. Its own gaps, corner style,
+/// fonts, icons, density and Frosted Glass are kept. `import` off only writes
+/// the files.
+pub fn import_theme(look: &Look, dirs: &Dirs, import: bool) -> Result<(), String> {
+    check(look)?;
     let mut t = InstallOpts::new(&look.flavor, &look.accent);
     t.keep_layout = true;
-    t.name = Some(name.clone());
+    t.name = Some(look.name());
     t.apply = import;
     t.config.clone_from(&dirs.config);
     t.data.clone_from(&dirs.data);
-    theme::install_theme(&t)?;
+    theme::install_theme(&t).map(drop)
+}
 
-    let slug = bundle_slug(&dirs.config, &name);
+/// Step 3: sets the wallpaper for the look's mode, in the saved theme too.
+pub fn set_wallpaper(look: &Look, dirs: &Dirs, png: &Path) -> Result<(), String> {
+    let slug = bundle_slug(&dirs.config, &look.name());
     background::set(
         &dirs.config,
         &png.display().to_string(),
@@ -127,6 +139,13 @@ pub fn apply(look: &Look, dirs: &Dirs, import: bool) -> Result<(), String> {
         look.is_dark(),
         slug.as_deref(),
     )
+}
+
+/// All three steps.
+pub fn apply(look: &Look, dirs: &Dirs, import: bool) -> Result<(), String> {
+    let png = render_wallpaper(look, dirs)?;
+    import_theme(look, dirs, import)?;
+    set_wallpaper(look, dirs, &png)
 }
 
 /// The name of the theme live in a mode, if COSMIC has one.
