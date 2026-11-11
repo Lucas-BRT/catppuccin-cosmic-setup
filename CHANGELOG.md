@@ -5,6 +5,33 @@ also get notes generated from their commits on the releases page.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-11
+
+### Added
+- `ctp-cosmic-gui`, a libcosmic app (`ctp-cosmic gui`, built from `gui/` with
+  `just`): Dark and Light cards that show what COSMIC has now, a live preview
+  of the desktop, flavor and accent swatches, and the 50 wallpaper styles
+  rendered in your palette, grouped in five categories with a search. Apply
+  saves the look as a COSMIC theme named `Catppuccin <Flavor> <Accent> ·
+  <Style>` (a card under Settings → Appearance) and sets that mode's
+  wallpaper. It is not part of the release binaries yet.
+- `ctp-cosmic` is also a library, and the repository a workspace with the app.
+
+### Changed
+- Applying a theme keeps your gaps, window hint size, corner style, fonts, icon
+  theme, density and Frosted Glass when COSMIC 1.11 (build of 2026-11-10 or
+  newer) keeps them in the theme.
+- The icons step runs before the desktop theme, so the theme COSMIC saves
+  carries the icon theme.
+- The tests parse themes with the libcosmic of COSMIC 1.11 and of 1.10.
+
+### Fixed
+- Importing a theme reset the interface font, monospace font and icon theme on
+  COSMIC 1.11, which moved them from the toolkit settings into the theme.
+- The wallpaper step changed nothing on COSMIC 1.11: it shows the wallpaper of
+  the current mode (`CosmicBackground.Dark` or `.Light`). Both, and the saved
+  theme's, are written now, `doctor` checks them and `uninstall` restores them.
+
 ## [0.8.0] - 2026-11-08
 
 ### Added

@@ -6,7 +6,7 @@ resolver = "3"
 
 [package]
 name = "ctp-cosmic"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2024"
 description = "Catppuccin for COSMIC: palette, desktop themes and procedural wallpapers"
 license = "MIT"

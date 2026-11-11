@@ -3,7 +3,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/Lucas-BRT/catppuccin-cosmic-setup/ci.yml?branch=main&style=for-the-badge&label=CI&labelColor=363a4f)](https://github.com/Lucas-BRT/catppuccin-cosmic-setup/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Lucas-BRT/catppuccin-cosmic-setup?style=for-the-badge&label=release&labelColor=363a4f&color=c6a0f6)](https://github.com/Lucas-BRT/catppuccin-cosmic-setup/releases)
 [![License](https://img.shields.io/github/license/Lucas-BRT/catppuccin-cosmic-setup?style=for-the-badge&labelColor=363a4f&color=a6da95)](LICENSE)
-[![COSMIC](https://img.shields.io/badge/COSMIC-1.10-8aadf4?style=for-the-badge&labelColor=363a4f)](https://system76.com/cosmic)
+[![COSMIC](https://img.shields.io/badge/COSMIC-1.11-8aadf4?style=for-the-badge&labelColor=363a4f)](https://system76.com/cosmic)
 [![Rust](https://img.shields.io/badge/Rust-f5a97f?style=for-the-badge&logo=rust&logoColor=24273a)](ctp-cosmic)
 [![Bash](https://img.shields.io/badge/Bash-a6da95?style=for-the-badge&logo=gnubash&logoColor=24273a)](scripts)
 
